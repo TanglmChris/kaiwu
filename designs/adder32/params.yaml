@@ -1,0 +1,108 @@
+# ADDER32 的可调参数定义。sweep.py 按这里声明的取值枚举组合。
+#
+# 一个设计根可以挂**多个被测顶层**（openspec/specs/repo-layout/spec.md 的
+# 「设计根可以声明多个被测顶层」）。`tops:` 下每个 key 是一个顶层模块名，
+# 它 MUST 在本根的 rtl/ 下有同名 module，且在整个 designs/ + cbb/ 里全局唯一。
+# 流程按**顶层名**解析（`--design <顶层名>`），不按目录名。
+#
+# ⚠️ 只有一个顶层的设计根**同样**要写 `tops:`，不省略、没有「省略时以目录名为
+# 顶层」的回退。两种形态意味着两条解析路径，而只有一条会被日常使用 ——
+# 另一条的失效是静默的（本仓踩过同形的坑：两个 SKIP 开关口径不同、输出一模一样）。
+#
+# key 直接就是 RTL 参数名。流程把它原样转发给 iverilog -P / yosys chparam /
+# cocotb parameters，中间没有映射层，记录 results/experiments.jsonl 的
+# params 段存的也是同一套名字。
+design_root: adder32
+
+tops:
+  ADDER32:
+    # 打分的归一化基线（ppa-scoring，内部#314：2026-10-15 由仓库根 scoring.yaml 原值搬来）。改它所有分数都变；不进 design_recipe，不换代。
+    score_baseline:
+      DAT_W: 32
+      SCHEME: 0
+      PIPE_STAGES: 0
+      CSEL_BLK_W: 4
+    # 仿真配置。不是扫描维度，所以不放在 params 段里。
+    sim:
+      # VCD 里时钟端口的名字（流程拼成 <design>.<clock_signal>）。
+      # 纯组合设计写 null，activity 统计会跳过周期计数、cycles 记为 null。
+      clock_signal: clk
+
+    # STA 按**理想驱动**建模的输入端口（见 flow/paths.py::ideal_drive_ports）。
+    # rst_n 扇出到全部触发器的复位端，这个流程不综合复位树 —— 给它设一个 BUFx2
+    # 量出来的是"没有复位树"，不是电路。与时钟同理，时钟本来就是理想的。
+    sta:
+      ideal_drive_ports: [rst_n]
+
+    # 综合时要**保住层级**的模块。2026-09-21 之前这是 RTL 里的
+    # `(* keep_hierarchy *)` 属性（本仓 内部#46 的 2.2）—— 那是综合指令，
+    # 不该写在描述电路的文件里。
+    #
+    # ⚠️ 这张表不是装饰：没有它，ABC 的 `&dch` 会跨模块边界重构
+    # （docs/pitfalls.md 的 P-3），三种手写加法器结构会收敛成同一个映射结果，
+    # 架构对比整条失效 —— 而两边都不报错。粒度也是实测出来的，见
+    # rtl/prefix_node.v 顶部：只标网络那一层时 64 位 Sklansky 的树被重构掉了，
+    # 要保住树的拓扑必须标在**算子**上。
+    #
+    # 表里每个名字都必须在本顶层这次综合的设计里命中，否则综合当场失败
+    # （flow/synth/synth.py 用 `select -assert-any`）—— yosys 自己对选不中的
+    # 模块只警告、退出 0，指望不上。
+    synth:
+      keep_hierarchy:
+        - ADDER_CORE
+        - CARRY_SELECT_ADDER
+        - CLA_ADDER
+        - FULL_ADDER
+        - PREFIX_ADDER
+        - PREFIX_NETWORK_BRENT_KUNG
+        - PREFIX_NETWORK_KOGGE_STONE
+        - PREFIX_NETWORK_SKLANSKY
+        - PREFIX_NODE
+        - RIPPLE_ADDER
+
+    params:
+      # DAT_W 是扫描维度：三种进位结构的延时随位宽的增长阶不同（O(n) / O(√n) /
+      # O(log n)），这条曲线是知识库里几乎每张卡「关键路径」小节的共同前提。
+      # 模块名叫 ADDER32 是历史沿革，见 spec.md。
+      DAT_W:
+        type: enum
+        # role: 位宽改的是这个加法器做多少活 —— 8 位与 64 位比绝对面积是同义反复。
+        # 前沿按它分组（openspec/specs/design-report 的「Pareto 前沿必须按规模维度分组」）。
+        role: scale
+        values: [8, 16, 32, 64]
+      # 六种进位结构。前三种是历史的，后三种是 Harris 分类法里前缀网络家族的三个角
+      # （见 knowledge/arith/prefix-adders.md 的 (l, f, t) 预算约束）：
+      #   SKLANSKY     (0, log2N-1, 0)  级数最少，扇出最大
+      #   KOGGE_STONE  (0, 0, log2N-1)  级数最少，连线最多  ← 本地流看不见连线代价，会高估它
+      #   BRENT_KUNG   (log2N-1, 0, 0)  级数最多，面积最省
+      # CLA 保留不动：它是平铺的与或式（深度由综合工具决定），是「交给工具」的对照组，
+      # 不是前缀网络。详见 docs/data-credibility.md 的 C-1。
+      SCHEME:
+        type: enum
+        # role: 同一个加法的六种进位结构，功能与位宽都不变 —— 这正是本设计存在的理由。
+        role: microarch
+        # 取整数（unify-rtl-naming D12）；名字只在 labels 里给人读，记录里存的是编号
+        values: [0, 1, 2, 3, 4, 5]
+        labels: {0: RIPPLE, 1: CLA, 2: CSEL, 3: SKLANSKY, 4: KOGGE_STONE, 5: BRENT_KUNG}
+      PIPE_STAGES:
+        type: enum
+        # role: 段间只打进位与低位和、数据通路不打拍，输入要保持 PIPE_STAGES+1 拍（LRS / LLD 的
+        # R.001），每拍只做 1/(PIPE_STAGES+1) 次加法 —— 每拍做的活变了，所以是规模旋钮，前沿按它
+        # 分组、组内只比 SCHEME（用户 2026-10-20 定）。跨级数的打分口径另议，不在这里定。
+        role: scale
+        values: [0, 1, 2]
+      # CSEL_BLK_W 只对 SCHEME=CSEL 有意义，所以 sweep: false —— 它不进全量
+      # 叉乘（否则 RIPPLE/CLA 下会产生一堆参数标签不同、实际电路相同的冗余记录），
+      # 单次实验里也可以省略。曲线用 make exp 显式跑。
+      #
+      # sweep: false 只挡**实验**，不挡**检查**。两个展开器是分开的，且必须保持分开：
+      #   flow/paths.py::param_combos()  尊重本键 —— ADDER32 因此是 72 个实验组合
+      #   scripts/fast_check.sh          忽略本键 —— ADDER32 因此是 288 个 elaborate 组合
+      # 护栏要覆盖每一个可被声明的取值，否则 params.yaml 里写得出来的组合会没人
+      # elaborate 过。回归测试见 tests/test_fast_check.py 的
+      # test_sweep_false_values_are_still_elaborated。
+      # 第一个取值 4 是默认值，必须保持在首位：历史记录都是在 BLOCK=4 下测的。
+      CSEL_BLK_W:
+        type: enum
+        sweep: false
+        values: [4, 2, 8, 16]

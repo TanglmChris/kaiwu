@@ -1,0 +1,60 @@
+# <顶层> 的可调参数定义。sweep.py 按这里声明的取值枚举组合；fast_check 对每个组合 elaborate + lint。
+design_root: <设计根>
+# IP 级命名约定（s_ / m_ 通道前缀）时写 role: ip；不是 IP 就删掉这一行。
+# role: ip
+
+tops:
+  <顶层>:
+    # 例化的 cbb 构件，写构件的顶层名（LLD 第 9 节同步列出）
+    deps: []
+
+    sim:
+      # VCD 里时钟端口的名字；纯组合设计写 null（cycles 记为 null）
+      clock_signal: clk
+      # 低有效复位端口名，网表等价拉复位时用（内部#186）；叫 rst_n 时可以不写
+      reset_signal: rst_n
+
+    sta:
+      ideal_drive_ports: [rst_n]
+      # 静态配置 / 复位输入在 STA 里按 false path 或 multicycle 处理（内部#154）。每一项要写 by：
+      # LRS 里担保「这些端口可以这样处理」的需求（如「只在空闲时改、改后 N 拍内不被采用」），
+      # fast_check 核它有定义、模式匹配得到输入端口。没有就删掉这几行。
+      # static_ports:
+      #   - {ports: [cfg_*], kind: false_path, by: R.<编号>}
+      #   - {ports: [rst_n], kind: false_path, by: R.<编号>}
+      # 时序验收场景（内部#189）：互斥排布由静态输入选择时，make depth 按场景给这些输入定值分别量。没有就删掉这几行。
+      # scenarios:
+      #   - {name: <场景名>, case: {<静态输入>: 0}, by: R.<编号>}
+      #   只对部分参数组合适用时加 when（内部#198）：{name: …, case: …, by: …, when: {<参数>: <值或值列表>}}
+
+    synth:
+      # 可选：要比结构时，把要保住层级的 building block 写在这里（2026-10-05 起不强制，内部#216；原因见 docs/pitfalls.md P-3）
+      keep_hierarchy: []
+      # 存储模型（area-breakdown，内部#174）：行为模型的 SRAM 等实际芯片会换成工艺宏的模块。报告单列它们的面积，
+      # 并给出「扣除存储模型后」的逻辑面积。名字必须是读入的 RTL 里的模块，拼错综合当场报错。
+      memory_models: []
+      # 参考口径（内部#202，make exp REFERENCE=1）必须接成常数的顶层输入端口模式：适用场景的 case 要把它们定全。没有就删掉。
+      # reference_ports: [cfg_*]
+
+    # 网表等价证明（可选，内部#232）：规模大、证不完的设计写 equiv: false —— 参考口径不做等价、照常报数（标「未经等价验证」），
+    # 事后的 flow/equiv/netlist_equiv.py 跳过它。缺省做。
+    # equiv: false
+
+    # LRS 规定的参数间约束：列出非法组合的部分赋值，命中任一项的组合不 elaborate、不扫参（内部#138）；
+    # 键必须是下面声明的参数、值必须在它的 values 里。没有约束就删掉这几行。
+    # exclude:
+    #   - {MODE: 1, DAT_W: 128}
+
+    # 显式扫参点（内部#214）：声明了它，sweep 只跑这张表；fast_check 覆盖「叉乘 − exclude」与这些点的并集。
+    # 每项要有唯一的 name，并给全下面声明的全部参数（含 sweep: false 的），值在 values 里、不命中 exclude。
+    # 只在目标点里取别的值的参数，在参数下写 `cross: false`：叉乘里只取 values[0]，其余取值必须出现在某个点里。
+    # 不用 exclude 挑目标点 —— exclude 只写非法组合。没有就删掉这几行。
+    # sweep_points:
+    #   - {name: target_a, DAT_W: 256}
+
+    params:
+      # 与 LRS 第 4 节「参数」一一对应（fast_check 检查这里的参数都在 LRS 参数表里）；取值必须是 RTL 真正认得的字面量
+      DAT_W:
+        type: enum
+        role: scale
+        values: [128, 256]

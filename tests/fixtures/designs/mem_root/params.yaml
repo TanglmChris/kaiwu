@@ -1,0 +1,9 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+# 网表等价的 gold 侧要把 RTL 里推断出的存储器（$mem）映射成触发器，否则 write_aiger 报错（内部#188；行为模型 SRAM 那样）。
+design_root: mem_root
+tops:
+  MEM_TOP:
+    sim:
+      clock_signal: clk
+    params:
+      DAT_W: {type: enum, role: scale, values: [8]}

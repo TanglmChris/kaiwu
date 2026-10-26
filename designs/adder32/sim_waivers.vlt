@@ -1,0 +1,20 @@
+`verilator_config
+// 仿真专用豁免（run_sim 的 verilator 构建读，lint 不读）：UNOPTFLAT 是调度期告警，lint 走不到。
+// 规则同 flow/sim/verilator.vlt 文件头：每条带 -file 与 -match，不许整文件、整规则地关。
+// ADDER32 的仿真构建豁免（2026-10-14 随设计根恢复，内部#305；内部#312 从 flow/sim/verilator.vlt 逐字搬来）。
+// 进位链、前缀网络的 gl/pl、超前进位的 pacc 都是按位赋值的向量，verilator 把整个向量当一个调度节点才看成环；
+// 全加器与前缀算子的端口被上一级按位接回去，verilator 给实例输入造的中间变量同样被看成环。
+lint_off -rule UNOPTFLAT -file "*/ripple_adder.v"               -match "*.c'"
+lint_off -rule UNOPTFLAT -file "*/carry_select_adder.v"         -match "*.block_cin'"
+lint_off -rule UNOPTFLAT -file "*/flat_lookahead.v"             -match "*.pacc'"
+lint_off -rule UNOPTFLAT -file "*/prefix_network_brent_kung.v"  -match "*.gl'"
+lint_off -rule UNOPTFLAT -file "*/prefix_network_brent_kung.v"  -match "*.pl'"
+lint_off -rule UNOPTFLAT -file "*/prefix_network_kogge_stone.v" -match "*.gl'"
+lint_off -rule UNOPTFLAT -file "*/prefix_network_kogge_stone.v" -match "*.pl'"
+lint_off -rule UNOPTFLAT -file "*/prefix_network_sklansky.v"    -match "*.gl'"
+lint_off -rule UNOPTFLAT -file "*/prefix_network_sklansky.v"    -match "*.pl'"
+lint_off -rule UNOPTFLAT -file "*/full_adder.v"                 -match "*.i_cin'"
+lint_off -rule UNOPTFLAT -file "*/prefix_node.v"                -match "*.o_g'"
+lint_off -rule UNOPTFLAT -file "*/prefix_node.v"                -match "*.o_p'"
+lint_off -rule UNOPTFLAT -file "*/prefix_node.v"                -match "*_OP_PREFIX_NODE__i_g_lo'"
+lint_off -rule UNOPTFLAT -file "*/prefix_node.v"                -match "*_OP_PREFIX_NODE__i_p_lo'"

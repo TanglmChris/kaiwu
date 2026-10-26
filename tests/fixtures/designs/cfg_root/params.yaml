@@ -1,0 +1,18 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+# 静态配置输入 cfg 经乘法器直通输出，寄存器路径很浅；声明 static_ports 后 depth.py 的
+# 最坏路径不该再从 cfg 起（sta-static-ports，内部#154）。
+design_root: cfg_root
+tops:
+  CFG_TOP:
+    sim:
+      clock_signal: core_clk
+    synth:
+      keep_hierarchy: [CFG_REG]
+    sta:
+      ideal_drive_ports: [rst_n]
+      clocks:
+        - {name: core_clk, port: core_clk, period_ns: cli}
+      static_ports:
+        - {ports: [cfg], kind: false_path, by: R.001}
+    params:
+      DAT_W: {type: enum, role: scale, values: [8]}

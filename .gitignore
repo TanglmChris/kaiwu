@@ -1,0 +1,25 @@
+# 不带斜杠：并行开发的 worktree 用软链共享主仓的 .venv，而 `.venv/` 只匹配目录、
+# 不匹配软链 —— 漏掉的那个 `?? .venv` 会让脏树守卫拦下该 worktree 的全部实验
+.venv
+__pycache__/
+*.pyc
+*.vcd
+*.fst
+*.saif
+sim_build/
+synth_build/
+sta_build/
+*.log
+.direnv/
+results.xml
+
+# 单次实验的原始产物：网表 / VCD / SAIF / STA 报告 / 综合 log
+runs/
+.pycache/
+
+# 并行开发的 worktree（Claude Code 的 worktree 功能与 scripts/new_worktree.sh 都建在这里）。
+# 不忽略时主工作区出现 `?? .claude/worktrees/`，脏树守卫拦下 main 上的全部实验
+.claude/worktrees/
+
+# macOS Finder 生成；未跟踪时会让脏树守卫拒写记录（内部#244，10-11 实撞）
+.DS_Store

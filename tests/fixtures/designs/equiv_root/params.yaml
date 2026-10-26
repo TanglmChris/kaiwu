@@ -1,0 +1,16 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+# 网表等价的复位与多时钟（内部#186）：复位端口不叫 rst_n（sim.reset_signal 声明），两个时钟各驱动一组寄存器。
+design_root: equiv_root
+tops:
+  EQV_TOP:
+    sim:
+      clock_signal: clk_a
+      reset_signal: sys_rst_n
+    sta:
+      clocks:
+        - {name: clk_a, port: clk_a, period_ns: cli}
+        - {name: clk_b, port: clk_b, period_ns: cli}
+      clock_groups:
+        - [clk_a, clk_b]
+    params:
+      DAT_W: {type: enum, role: scale, values: [8]}

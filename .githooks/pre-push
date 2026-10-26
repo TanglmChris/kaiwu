@@ -1,0 +1,4 @@
+#!/bin/sh
+# Managed by keel --install --with-git-hooks: the fast inner-loop check.
+# The full or slow suite belongs to CI or `keel gate change-close`.
+exec ./scripts/fast_check.sh

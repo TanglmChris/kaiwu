@@ -1,0 +1,13 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+# depth 的级数预算（内部#184）：两个子模块各有一条寄存器到寄存器的串行链，一深一浅都超预算，
+# 另有一条不超的。只列最深一条（PATHS=1）时浅的那批看不见；给了预算要两批都列出来。
+design_root: budget_root
+tops:
+  BUDGET_TOP:
+    sim:
+      clock_signal: clk
+    sta:
+      clocks:
+        - {name: clk, port: clk, period_ns: cli}
+    params:
+      DAT_W: {type: enum, role: scale, values: [8]}

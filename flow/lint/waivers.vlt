@@ -1,0 +1,14 @@
+`verilator_config
+// 本文件：lint（verilator --lint-only -Wall）的逐条豁免（scripts/fast_check.sh 的 RTL lint 一项读它）。
+//
+// 为什么是豁免而不是改 RTL：下面每一条都核过是**有意的写法**，而改 RTL 的代价不小 ——
+// 等价证明的账目按被证 RTL 的字节失效，且改 RTL **不换代**
+// （指纹不含 RTL，docs/data-credibility.md 的 D-14），数字可能悄悄变而没人知道。
+// 豁免不改变任何网表。
+//
+// 规则：每条都带 -file 与 -match（消息里的具体标识符），**不许**整文件、整规则地关。
+// 新出现的 warning —— 哪怕同一条规则、同一个文件、换了一个信号 —— 照样 FAIL。
+// DECLFILENAME 在命令行上整体关掉：文件名小写、模块名大写是本仓有意的约定（内部#46 的 2.1）。
+// 豁免只在这里写，**不写进 RTL**（可综合 RTL 不带工具指令，rtl-structure-authority）。
+
+// 设计根自己的豁免写在 <设计根>/waivers.vlt；本文件只留跨设计根的通用条目，目前没有。

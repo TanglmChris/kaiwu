@@ -1,0 +1,25 @@
+# <顶层> 的可调参数定义。sweep.py 按这里声明的取值枚举组合；fast_check 对每个组合 elaborate + lint。
+design_root: <目录>
+
+tops:
+  <顶层>:
+    # 例化的 cbb 构件，写构件的顶层名
+    deps: []
+
+    sim:
+      # VCD 里时钟端口的名字；纯组合设计写 null（cycles 记为 null）
+      clock_signal: clk
+
+    sta:
+      ideal_drive_ports: [rst_n]
+
+    synth:
+      # 可选：要比结构时，把要保住层级的 building block 写在这里（2026-10-05 起不强制，内部#216；原因见 docs/pitfalls.md P-3）
+      keep_hierarchy: []
+
+    params:
+      # 与 spec 的参数表一一对应；取值必须是 RTL 真正认得的字面量
+      DAT_W:
+        type: enum
+        role: scale
+        values: [128, 256]

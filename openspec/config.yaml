@@ -1,0 +1,55 @@
+schema: keel-spec-driven
+
+context: |
+  RTL 设计 + PPA（Power/Performance/Area）优化实验仓库，两个月周期，预计积累
+  上百条实验记录，最终目的是做「本地开源工具流指标 vs 外部参考工具流（Synopsys
+  DC/PT）指标」的偏差分析。
+
+  工具链（全部本机，不用 Docker）：
+  - yosys / verilator / iverilog 来自 ~/tools/oss-cad-suite
+  - OpenSTA 在 ~/tools/OpenSTA-src/build/sta（时序 + VCD 反标功耗）
+  - PDK 是 ASAP7（7nm FinFET 预测性 PDK），综合用的合并 liberty 在
+    ~/pdk/asap7_merged/asap7sc7p5t_RVT_TT.lib
+  - Python 走仓库内 .venv（依赖钉在 requirements.txt：cocotb / vcdvcd / pyyaml / pytest-xdist）
+  - 工具进 PATH 靠 source ~/tools/env.sh。本机没装 direnv，这一步**不会**自动发生
+    （docs/toolchain.md 的「本机环境事实」，P-17 / P-18）
+
+  这个仓库的两条硬约束，改动时必须当成一等公民：
+
+  1. 实验记录 results/<设计根>/experiments.jsonl（每个设计根一个文件，#422）是整个项目的资产。字段可以新增，**不许改名或
+     删除已有字段**。任何触碰这个 schema 的改动都是 Full 模式，且必须说明历史
+     记录如何保持可读。
+
+  2. 「多微架构比 PPA」类实验，要知道 RTL 的结构意图可能被综合抹平：yosys 的
+     `synth -flatten` 配合 ABC 默认 `-liberty` 脚本里的 `&dch` 会从布尔功能重新
+     推导电路，把不同微架构收敛成同一个映射结果（实测 ripple/CLA/carry-select
+     的关键路径级数和面积会完全一样）。流程不 flatten；要比结构时可以在该顶层
+     params.yaml 的 `tops:<顶层>:synth:keep_hierarchy:` 声明保住层级、由综合流程施加，
+     **RTL 里不写综合指令**（rtl-structure-authority）。2026-10-05 起保层级不再强制
+     （全仓取消红线 6，#216）；两种结构的网表相同就是测量失败（P-3、P-15）。
+
+  指标可信度高于流程完成度：本项目最常见的失败不是「任务没做完」，而是
+  「数字看起来完成了但不可信」（单位错、活动率没反标、结构被优化掉）。任何
+  报告 PPA 数字的任务，证据里要能说清这些数字为什么可信。
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always include a "Non-goals" section
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

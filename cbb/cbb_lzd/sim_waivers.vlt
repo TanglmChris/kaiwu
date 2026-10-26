@@ -1,0 +1,7 @@
+`verilator_config
+// 仿真专用豁免（run_sim 的 verilator 构建读，lint 不读）：UNOPTFLAT 是调度期告警，lint 走不到。
+// 规则同 flow/sim/verilator.vlt 文件头：每条带 -file 与 -match，不许整文件、整规则地关。
+// CBB_LZD 的仿真构建豁免（内部#169 实测；内部#312 从 flow/sim/verilator.vlt 逐字搬来）。LZD 的 CLA 按位赋值的向量。
+lint_off -rule UNOPTFLAT -file "*/cbb_lzd.v"                   -match "*.orp'"
+lint_off -rule UNOPTFLAT -file "*/cbb_lzd.v"                   -match "*.g'"
+lint_off -rule UNOPTFLAT -file "*/cbb_lzd.v"                   -match "*.p'"

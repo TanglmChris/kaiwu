@@ -1,0 +1,26 @@
+# CBB_ONEHOT2BIN 的可调参数定义。sweep.py 按这里声明的取值枚举组合；fast_check 对每个组合 elaborate + lint。
+#
+# 2026-09-30 随构件库首批落地。纯组合、不例化其它模块（add-rtl-coding-style 的 D25），
+# 所以没有要保住层级的子模块。TB 见 tb/（内部#62）。
+design_root: cbb_onehot2bin
+
+tops:
+  CBB_ONEHOT2BIN:
+    # 打分的归一化基线（ppa-scoring，内部#314：2026-10-15 由仓库根 scoring.yaml 原值搬来）。改它所有分数都变；不进 design_recipe，不换代。
+    score_baseline:
+      DAT_W: 2
+    sim:
+      clock_signal: null
+
+    sta:
+      ideal_drive_ports: []
+
+    synth:
+      keep_hierarchy: []
+
+    params:
+      # ADDR_W 不扫：默认 $clog2(DAT_W)，更宽只是高位补 0（或多出无效编号）。
+      DAT_W:
+        type: enum
+        role: scale
+        values: [2, 5, 16, 32, 33]

@@ -1,0 +1,9 @@
+`verilator_config
+// ADDER32 的 lint 豁免（设计根自己的一份，内部#109）。规则同 flow/lint/waivers.vlt：每条带 -file 与 -match。
+//
+// PIPE_STAGES=0 时整个加法器是组合逻辑：clk / rst_n 是为带寄存器的配置留的端口，
+// stage_sum_in[0] 只在下一段透传时被读。这是同一组端口覆盖全部配置的有意写法，
+// 不是漏接线（2026-10-02 删除前同样登记在 flow/lint/waivers.vlt）。
+lint_off -rule UNUSEDSIGNAL -file "*/adder32.v" -match "*'clk'"
+lint_off -rule UNUSEDSIGNAL -file "*/adder32.v" -match "*'rst_n'"
+lint_off -rule UNUSEDSIGNAL -file "*/adder32.v" -match "*'stage_sum_in'"

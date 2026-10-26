@@ -1,0 +1,12 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+# 复位广播（tests/test_sta_boundary.py）：rst_n 扇出到很多触发器，验证理想驱动声明让关键路径
+# 留在 clk 组。开源部分里没有扇出够大的时序设计，所以单独造它（kaiwu-layout-decouple D11，内部#305）。
+design_root: rst_fanout
+tops:
+  RST_FANOUT:
+    sim:
+      clock_signal: clk
+    sta:
+      ideal_drive_ports: [rst_n]
+    params:
+      DAT_W: {type: enum, role: scale, values: [1024]}

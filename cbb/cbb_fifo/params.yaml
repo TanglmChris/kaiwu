@@ -1,0 +1,40 @@
+# CBB_FIFO 的可调参数定义。sweep.py 按这里声明的取值枚举组合；fast_check 对每个组合 elaborate + lint。
+#
+# 2026-09-30 落地。结构在本模块内展开、不例化其它模块
+# （add-rtl-coding-style 的 D25），所以没有要保住层级的子模块。TB 见 tb/（内部#62）。
+design_root: cbb_fifo
+
+tops:
+  CBB_FIFO:
+    # 打分的归一化基线（ppa-scoring，内部#314：2026-10-15 由仓库根 scoring.yaml 原值搬来）。改它所有分数都变；不进 design_recipe，不换代。
+    score_baseline:
+      DAT_W: 1
+      FIFO_DEP_N: 2
+      PT_EN: 0
+      RST_EN: 0
+    sim:
+      clock_signal: clk
+
+    sta:
+      ideal_drive_ports: [rst_n]
+
+    synth:
+      keep_hierarchy: []
+
+    params:
+      DAT_W:
+        type: enum
+        role: scale
+        values: [1, 32]
+      FIFO_DEP_N:
+        type: enum
+        role: scale
+        values: [2, 4, 16]
+      PT_EN:
+        type: enum
+        role: microarch
+        values: [0, 1]
+      RST_EN:
+        type: enum
+        role: microarch
+        values: [0, 1]

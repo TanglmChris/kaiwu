@@ -1,0 +1,15 @@
+# fast_check 的失败豁免（内部#254，用户 2026-10-12 定）。判定逻辑与可用的检查段名见 flow/check/check_waivers.py。
+#
+# 红灯要么修掉，要么在这里登记谁、为什么、到什么时候；不允许不经登记就红着推（也不许 --no-verify）。
+# 一段里只有违规全部落在该段登记的文件 glob 内、且每条豁免本次匹配的条数等于它的 count，才降为 WAIVED；否则照旧 FAIL。
+# 豁免本次没放行任何违规（已修好或写错），fast_check 报「失败豁免过时」；还在放行违规而挂的 issue 已关，只提示（内部#291）。
+# 挂着豁免的 issue，删豁免的提交进 main 之后才关（内部#218「修好即关」的例外，用户 2026-10-13 定）。
+# glob 只写到出问题的那几个文件，不要写成整个设计根。
+#
+# waivers:
+#   - check: style                      # ports doc dup clean escape case naming enum style directive bind
+#     files: designs/foo/rtl/a.v        # 字符串或列表，相对仓库根
+#     issue: 246                        # 本仓 issue 号
+#     until: A / B 方案定了修掉之后
+#     count: 2                          # 登记时放行的违规条数；本次条数不等就 FAIL（多了是新违规，少了改小，内部#330）
+waivers: []

@@ -1,0 +1,67 @@
+# Keel project configuration（开源版）。
+#
+# 维护方自己的仓里另有一份带私有仓名、IP 专属角色与授权细节的完整版；这一份只留公开仓能直接用的部分。
+# fork 之后按自己的仓与组织改：`issue:` 的仓名、`authorize:` 里各组、需要的话再加 `patrol:` / `issue_roles:`
+# （写法见 keel 的文档与 `keel --doctor`）。
+
+# 秒级内循环检查：elaborate（iverilog）+ lint（verilator -Wall）全部设计的全部参数组合、编译 Python 流程脚本、
+# 设计根与 RTL 的机械检查。本地 pre-push（`keel --install --with-git-hooks`）和迭代时跑。
+# 不含仿真 / 综合 / STA：一轮 adder32 扫参约 2 分钟，完整流程归 `keel gate change-close`。
+fast_check: ./scripts/fast_check.sh
+
+# 负责人的语言：keel context、会话开头的提示与 chat 钩子都会重申它。文档与流程输出都是中文。
+owner_language: zh
+
+# 常备授权：列出的动作不用每次问负责人；没列的一律要问。门禁、证据与评审照旧，授权只免掉「每次确认」。
+authorize:
+  # 按能力 / 组织角色分组，组头写「组：<归谁>」。「（仅声明）」= 条目没带 @<角色>，任何会话都拿得到，
+  # 靠章程与评审约束；带 @<角色> 的由 keel 按会话绑定的角色强制。组织分工见 team/README.md。
+  #
+  # 组：全员（仅声明）
+  # commit：run_experiment.py 把 `git rev-parse HEAD` 写进每条记录，工作区脏着记录的 provenance 是错的，
+  #         所以「扫参前先提交」是热路径（红线 3）。archive：OpenSpec 归档，git 可回退。
+  - commit
+  - archive
+  # 只在本仓开 issue（不含关单、不含别的仓）；`keel gate change-close` 要的 durable owner 常常是一张还没开的 issue。
+  # fork 后改成自己的仓。
+  - issue:TanglmChris/kaiwu
+  #
+  # 组：推 main（keel 按角色强制）
+  # 受保护分支：只有绑定 kaiwu-chief 的会话能推，每条 push 命令都当场问负责人，keel 不存批准。
+  - push-protected:main@kaiwu-chief
+  #
+  # 组：全员的特性分支（仅声明：每个会话推自己的 worktree-*；推前 fast_check 过、不强推）
+  - push:worktree-*
+  #
+  # 组：kaiwu-flow（keel 按角色强制）
+  - push:flow-*@kaiwu-flow
+  #
+  # 组：各 IP 评审会话的评审分支（keel 按角色强制）：`<顶层小写>-review-rN` 与 `<顶层小写>-rtl-review-rN`
+  - push:*-review-r*@kaiwu-review-*
+
+# 改了就必走 Full 的路径，不管 diff 多小。记录只增字段（openspec/specs/experiment-record），加进去的字段是永久的；
+# flow/flow_fingerprint.py 的 METRIC_MODULES 里每个文件都哈希进 flow.fingerprint，改任何一个都开新一代、
+# 与上一代不可比（P-8），要整轮重跑；abc.constr 经 synth_recipe 折进同一个指纹。METRIC_MODULES 新加的文件也要列进来。
+full_mode_paths:
+  - results/*/experiments.jsonl: append-only record, one file per design root; a field added or renamed is permanent and every reader must keep parsing old rows
+  - flow/records.py: decides which file a record is appended to and how every reader reads them all; a change can silently drop or double-count records
+  - flow/record_branches.yaml: the branches allowed to commit records and reports; a name added here lets that branch's records into the history
+  - flow/paths.py: resolves each design's flow config into flow.design_recipe_sha256; a change that moves a design's resolved clocks / boundary / keep_hierarchy starts a new generation for that design
+  - flow/sim/run_sim.py: in METRIC_MODULES; any change starts a new flow generation that is not comparable with the last
+  - flow/sim/vcd_stats.py: in METRIC_MODULES; any change starts a new flow generation that is not comparable with the last
+  - flow/synth/synth.py: in METRIC_MODULES; carries the yosys recipe, any change starts a new flow generation
+  - flow/synth/search.py: in METRIC_MODULES; any change starts a new flow generation that is not comparable with the last
+  - flow/synth/abc.constr: folded into synth_recipe; any change starts a new flow generation
+  - flow/sta/run_sta.py: in METRIC_MODULES; carries the STA recipe, any change starts a new flow generation
+  - scripts/run_experiment.py: in METRIC_MODULES and builds the record dict; any change starts a new generation and can change the record
+  - flow/sim/gate_sim.py: in METRIC_MODULES; produces the gate-level VCD that dynamic and static power are annotated from, any change starts a new flow generation
+  - flow/synth/area.py: in METRIC_MODULES; computes synth.area_breakdown, any change starts a new flow generation
+  - flow/synth/reference.py: in METRIC_MODULES; computes the record's reference block, any change starts a new flow generation
+  - flow/flow_fingerprint.py: defines METRIC_MODULES and how the fingerprint is computed; a change here decides what counts as the same generation
+
+# 允许的外部模型 CLI（`keel agents brief` 只编译给这里列出的 agent）。它们会把简报和读到的文件发给各自的服务商：
+# codex 发 OpenAI，dsh 发 DeepSeek。有文件必须留在本机时，在 egress_deny: 下写 `- <glob>: <原因>`。
+external_agents:
+  allow:
+    - codex
+    - dsh

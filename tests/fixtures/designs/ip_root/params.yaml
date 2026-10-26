@@ -1,0 +1,13 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+# 代替正在开发的真实 IP 当路径解析的黄金值（内部#110）：顶层名与根名不同、单时钟 clk、rst_n 理想驱动。
+# 例化一个子模块 IP_SUB（加法器），供 flow/synth/depth.py 量子模块的用例（内部#111）。
+design_root: ip_root
+tops:
+  IP_TOP:
+    sim:
+      clock_signal: clk
+    sta:
+      ideal_drive_ports: [rst_n]
+    params:
+      DAT_W: {type: enum, role: scale, values: [8, 16]}
+      DEP_N: {type: enum, role: scale, values: [2, 4]}

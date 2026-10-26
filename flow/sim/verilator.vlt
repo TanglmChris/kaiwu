@@ -1,0 +1,21 @@
+`verilator_config
+// 本文件：verilator **仿真**构建的**通用**逐条豁免（flow/sim/run_sim.py::verilator_configs 读它）。
+// 设计专属的条目写在各设计根的 sim_waivers.vlt（内部#312）：run_sim 依次读本文件、flow/lint/waivers.vlt，
+// 再读被测顶层所在设计根与各依赖根的 waivers.vlt 与 sim_waivers.vlt。目前没有通用条目。
+// 与 lint 相同的告警（宽度类）不在这里：仿真构建同时读各份 lint 豁免，不另抄一份。
+//
+// 仿真专用的只有 UNOPTFLAT。它是**调度期**告警，lint（--lint-only）走不到那一步，所以 lint 那份
+// 从来没见过它；仿真构建默认把它当错误退出，内部#22 第 1 条就是它。
+//
+// 为什么是豁免：UNOPTFLAT 只影响仿真速度，不影响结果 —— verilator 把整个向量当成一个
+// 调度节点，于是「c[i+1] 由 c[i] 算出」看起来像环，它多迭代几次直到收敛。下面每一个都是
+// 这种按位赋值的向量（进位链、前缀网络的 gl/pl、popcount 各层），不是真环：真环在综合里
+// 会被拒掉，而这些模块的网表都已证明与 RTL 等价（flow/equiv/netlist_equiv.py）。
+// 官方的结构性修法 split_var 在这里用不了：cocotb 以 --public-flat-rw 构建，public 的
+// 变量 verilator 拒绝拆（「will not be split because it is public」）。
+//
+// 规则同 lint：每条都带 -file 与 -match（消息末尾的信号名），**不许**整文件、整规则地关，
+// 不许 -Wno-fatal。新出现的告警 —— 哪怕同一条规则、同一个文件、换了一个信号 —— 照样失败。
+// 豁免只在豁免文件里写，**不写进 RTL**（rtl-structure-authority）。
+// 豁免文件只含告警控制，改不了任何被仿真的值，所以不进 flow 指纹。
+

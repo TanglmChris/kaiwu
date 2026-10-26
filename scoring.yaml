@@ -1,0 +1,39 @@
+# PPA 打分规则。**所有评分参数只允许出现在这个文件里** —— scripts/score.py 里
+# 不得硬编码任何权重、方向、口径或基线，目标变了改这里就能换掉整套规则，
+# 不改代码、不重跑实验（design.md 的 D2/Q1）。
+#
+# 分数 = Σ(比值 × 权重) / Σ权重；比值先化成「越大越好」：
+#   direction: higher → value / baseline
+#   direction: lower  → baseline / value
+# 基线自身的分数恒为 1.0，权重为 0 的维度照常显示但不进总分（D5）。
+
+# 动态功耗的比较口径。动态功耗严格正比于频率（design.md 的 F1），所以两种口径
+# 由同一批测量数据换算得到，切换不需要重跑 STA：
+#   iso_frequency  各设计都折算到 reference_period_ns 下比（同频比功耗）
+#   at_fmax        各设计都折算到自己的 fmax 下比（各自最快时比功耗）
+# at_fmax 口径天然偏向慢电路（跑得慢就省电），这不是 bug 是口径含义。
+power_basis: iso_frequency
+reference_period_ns: 5.0
+
+# 默认权重：性能与动态功耗等权，面积记录并显示但不计分。
+# 按优化目标直接改这三个数。
+metrics:
+  - name: fmax_mhz
+    field: sta.fmax_mhz
+    direction: higher
+    weight: 1.0
+  - name: dynamic_power_w
+    field: sta.dynamic_power_w      # 唯一按 power_basis 换算的维度
+    direction: lower
+    weight: 1.0
+  - name: area_um2
+    field: synth.area_um2
+    direction: lower
+    weight: 0.0
+
+# 归一化基线：每个设计一个**固定**的实现，不用批内 min/max —— 批内归一化会让
+# 「往库里加一条新记录」改掉所有旧记录的分数，两个月的纵向对比就废了（D3）。
+# 2026-10-15 起基线写在各设计根 params.yaml 的 `tops:<顶层>:score_baseline:`（内部#314，用户 2026-10-14 定：
+# 闭源内容只放设计根），这里不再有 `baselines:` —— 留着就报错，免得两处各写一份。
+# 参数字典必须与记录的 params 段逐项相等；每个 `tops:` 顶层都要有，由 tests/test_score.py 守着。
+# 给已删顶层的历史记录打分：`scripts/score.py --baseline-config <旧 scoring.yaml>`，旧文件从 git 历史取。

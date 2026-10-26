@@ -1,0 +1,5 @@
+E       AssertionError: core.hooksPath=None：退出码 0
+E       AssertionError: core.hooksPath=/elsewhere/hooks：退出码 0
+FAILED tests/test_new_worktree.py::test_hooks_path_must_point_to_githooks[None-False]
+FAILED tests/test_new_worktree.py::test_hooks_path_must_point_to_githooks[/elsewhere/hooks-False]
+2 failed, 2 passed, 13 deselected in 2.06s

@@ -1,0 +1,189 @@
+## Invalidates
+
+- I1: "暂无。本仓库 `designs/adder32` 目前只有 RIPPLE / CLA / CSEL 三种结构，前缀网络尚未实现。" — `knowledge/arith/prefix-adders.md` 本地实测一节。Updated by: 2.1
+- I2: "**在功能完全相同的前提下横向比较三种进位结构的 PPA**。" 与参数表行 "| `CARRY_STRUCT` | `RIPPLE` / `CLA` / `CSEL` | 是 | 进位结构 |" — `designs/adder32/spec.md`。Updated by: 1.1
+- I3: "把三种进位结构" — `designs/adder32/design.md` 综合坑一节；取值增至六个后该数字过时。Updated by: 1.1
+- I5: "以下 9 个模块必须带 `(* keep_hierarchy *)`" — `designs/adder32/design.md`；加入 `prefix_node` 后变成 10 个，且该节需要写明「粒度」这一教训。Updated by: 1.3
+- I4: "parameter CARRY_STRUCT = \"RIPPLE\", // RIPPLE | CLA | CSEL" — `designs/adder32/rtl/adder_core.v` 的参数注释。Updated by: 1.1
+
+## Expectation Coverage
+
+- E1: 三个前缀网络在全部 `WIDTH × PIPE_STAGES` 组合下功能正确 Covered by: 1.1
+- E2: 六个 `CARRY_STRUCT` 取值产出可区分的网表（experiment-trust / 功能等价的微架构取值必须产出可区分的网表） Covered by: 2.1
+- E3: 前缀网络的延时随位宽呈 O(log n)，斜率严格小于 CSEL 的 0.573 Covered by: 2.1
+- E4: 本地流连线代价为零这一测量边界被写进结论（experiment-trust / 依赖连线代价的结论必须标注本地流的测量边界） Covered by: 2.1
+- E5: `results/experiments.jsonl` 的字段集合不变，历史记录不被改写 Covered by: 1.1, 2.1
+- E6: 实验记录的 provenance 正确（干净工作区、已提交后才跑） Covered by: 1.2, 1.4
+- E7: `keep_hierarchy` 的粒度足以保住前缀树的拓扑 —— 映射后的关键路径级数与 RTL 的 DAG 深度同阶 Covered by: 1.3
+
+## 1. 实现三个前缀网络
+
+- [x] 1.1 给 adder32 增加 SKLANSKY / KOGGE_STONE / BRENT_KUNG 三个进位结构
+  - Covers:
+    - D1
+    - D2
+    - D3
+    - D4
+    - D5
+    - F3
+    - I2
+    - I3
+    - I4
+  - Touch:
+    - designs/adder32/rtl/prefix_adder.v
+    - designs/adder32/rtl/prefix_network_sklansky.v
+    - designs/adder32/rtl/prefix_network_kogge_stone.v
+    - designs/adder32/rtl/prefix_network_brent_kung.v
+    - designs/adder32/rtl/adder_core.v
+    - designs/adder32/params.yaml
+    - designs/adder32/spec.md
+    - designs/adder32/design.md
+  - Verify:
+    - Strategy: vertical-tdd
+    - M1: 三个新取值在 `WIDTH=8/16/32/64` × `PIPE_STAGES=0/1/2` 共 12 个组合下各跑一次仿真，全部 `sim.passed=True`（复用现有 tb，验的是 `a + b + cin` 的逐位等价）
+    - M2 (regression): `RIPPLE`/`CLA`/`CSEL` 在 `WIDTH=32, PIPE_STAGES=0/1/2, CSEL_BLOCK=4` 下重跑综合，`cell_count` 与 `critical_path_stages` 与已有记录逐位相同
+    - M3 (regression): `./scripts/fast_check.sh` 对扩容后的全部参数组合 elaborate 通过
+    - M4 (regression): `results/experiments.jsonl` 中本任务开始前已有的 67 行逐字节不变
+  - Evidence:
+    - Contract: keel-task-capsule/v1 sha256:106571197fdbfd310691ea50ccf730434a3d2dca7f8604a34d8ad430b6b379c7
+    - M1: `<scratchpad>/func_check.py` 对三个新取值 × `WIDTH=8/16/32/64` × `PIPE_STAGES=0/1/2` 各跑一次 cocotb 仿真（每种网络 12 组，共 **36 组，0 失败**），复用未经修改的 `designs/adder32/tb/test_adder32.py`，验的是 `a + b + cin` 的逐位等价。**覆盖了流水切分产生的非 2 的幂段宽**（如 `WIDTH=32, PIPE_STAGES=2` 的 10/10/12，`WIDTH=8, PIPE_STAGES=2` 的 2/2/4），三个网络的 generate 索引逻辑在这些宽度上都正确
+    - M1.red: 实现前 `make -f flow/Makefile exp DESIGN=adder32 PARAMS="WIDTH=32 CARRY_STRUCT=SKLANSKY PIPE_STAGES=0"` 报 `flow.paths.ParamError: 参数 CARRY_STRUCT 的取值 'SKLANSKY' 未在 params.yaml 中声明；允许的取值是 ['RIPPLE', 'CLA', 'CSEL']`
+    - M1.green: 新增 `rtl/prefix_adder.v` 外壳与三个 `rtl/prefix_network_*.v`、`rtl/adder_core.v` 增加 `g_prefix` 分派分支、`params.yaml` 把 `CARRY_STRUCT` 扩到六个取值后，上述 36 组仿真全部通过
+    - M2: `<scratchpad>/regress_prefix.py` 在 `WIDTH=32, CSEL_BLOCK=4` 下对 `RIPPLE`/`CLA`/`CSEL` × `PIPE_STAGES=0/1/2` 重跑 synth+sta（产物落 scratchpad，**不追加记录**），`cell_count` 与 `critical_path_stages` 与既有记录**逐位相同，0 处不一致**：RIPPLE 96/130/160 与 34/20/16 级，CLA 174/192/222 与 22/16/14 级，CSEL 313/346/382 与 15/13/12 级
+    - M3: `./scripts/fast_check.sh` 退出码 0（`ok python compileall`、`ok elaborate adder32 (all param combos)`），覆盖扩容后的全部 72 个参数组合
+    - M4: `cmp -s results/experiments.jsonl <scratchpad>/exp_before_prefix.jsonl` 静默返回 0 —— 本任务全程只跑 `run_sim` / `run_synth` / `run_sta`，未调用 `run_experiment`，67 行记录逐字节未动
+    - Review:
+      - Status: pass
+      - Acceptance check: D1（保留 `CLA`）落在 `params.yaml` 六个取值中 `CLA` 原样在列、RTL 未动；D2（只做三个角）落在三个 `prefix_network_*.v`，未实现 Han-Carlson；D3（各自 `keep_hierarchy`）四个新模块均已标注，`design.md` 的清单已从 5 个更新到 9 个并说明了为什么 `flat_lookahead.v` 反而不该标；D4（共用外壳）落在 `prefix_adder.v` —— g/p 预计算与末级 sum XOR 只有一份，三个网络只替换中间那一段；D5（复用 tb）由 M1 证实，tb 一行未改。F3 的 Harris 预算约束写进了 `params.yaml` 的注释与 `spec.md` 的参数说明。 另：实现后的首次实测出现一个与理论相反的结果 —— `WIDTH=32, PIPE_STAGES=0` 下 Sklansky 是 25 级 / 0.7179 ns，比 Brent-Kung 的 19 级 / 0.5436 ns 还差，而理论前缀级数是 Sklansky 5 < Brent-Kung 9。三个网络共用同一外壳且 36 组功能仿真全通过，因此不是实现错误；工作假设是 Sklansky 末级那个要驱动 16 个消费者的高扇出节点在本地库有限的驱动档位下必须靠缓冲树、而缓冲会计进关键路径级数。这不是外溢的遗留项而是本变更自己要回答的问题，已就地提升为 design.md 的 **Q2**、纳入任务 2.1 的 Covers、并给了预授权回退（若成立则归因到本地库驱动档位有限，不宣称 Sklansky 结构本身劣于 Brent-Kung），故 Findings 为 none。
+      - Scope check: 新增 4 个文件、修改 4 个文件，全部在 Touch 内。仿真/综合产物与对照脚本全部写在 scratchpad，仓库内无临时文件，`results/experiments.jsonl` 未动。
+      - Findings: none
+    - Blocker: none
+    - Reauthorizations: none
+
+- [x] 1.2 提交实现，为记录实验准备干净且已提交的工作区
+  - Mode: repo-action
+  - Covers:
+    - E6
+  - Touch:
+    - none
+  - Verify:
+    - Strategy: evidence-first
+    - M1: `git status --porcelain` 输出为空，且 `git rev-parse HEAD` 指向包含 1.1 全部改动的提交
+  - Evidence:
+    - Contract: keel-task-capsule/v1 sha256:ac6c1635e9459cb2496530244e900282e038737c02beaa09424d2c4b6942d6de
+    - M1: 提交 `8f6e1baccc3bdb579f111f71bb3668218fda2f0c`（"adder32: 增加 Sklansky / Kogge-Stone / Brent-Kung 三种前缀网络"）之后 `git status --porcelain` 输出为空，`git rev-parse HEAD` = `8f6e1baccc3bdb579f111f71bb3668218fda2f0c`；该提交包含任务 1.1 的 4 个新 RTL 文件与 4 个修改文件，以及本变更的 OpenSpec 产物
+    - Review:
+      - Status: pass
+      - Acceptance check: E6 要求实验记录的 provenance 正确 —— `run_experiment.py` 会把 `git rev-parse HEAD` 写进每条记录，现工作区干净且 HEAD 指向包含全部前缀网络实现的提交，任务 2.1 的 72 组扫参写出的记录能被正确追溯到产生它们的代码版本。
+      - Scope check: `Mode: repo-action`，`Touch: none` —— 未写任何工作区文件，只做了一次本地提交。未 push、未 sync、未 archive。
+      - Findings: none
+    - Blocker: none
+    - Reauthorizations: none
+
+- [x] 1.3 把 keep_hierarchy 的粒度从网络下移到前缀算子节点
+  - Covers:
+    - D3
+    - E7 —— `keep_hierarchy` 的粒度必须落在前缀算子节点上，树的拓扑才留得住（Q2 的诊断结论，见 design.md）
+    - I5
+  - Touch:
+    - designs/adder32/rtl/prefix_node.v
+    - designs/adder32/rtl/prefix_network_sklansky.v
+    - designs/adder32/rtl/prefix_network_kogge_stone.v
+    - designs/adder32/rtl/prefix_network_brent_kung.v
+    - designs/adder32/design.md
+  - Verify:
+    - Strategy: vertical-tdd
+    - M1: `WIDTH=64, PIPE_STAGES=0` 下三个网络映射后的关键路径单元数与 RTL 的 DAG 深度同阶 —— SKLANSKY 与 KOGGE_STONE 均 ≤ 12、BRENT_KUNG ≤ 16（外壳的 g/p、进位、sum XOR 约占 3 级；DAG 深度分别是 6/6/10）
+    - M2: 三个网络的关键路径级数满足理论序 `SKLANSKY ≈ KOGGE_STONE < BRENT_KUNG`（前两者之差不超过 2 级，且都严格小于 BRENT_KUNG）
+    - M3 (regression): 三个网络在 `WIDTH=8/16/32/64` × `PIPE_STAGES=0/1/2` 共 36 组仿真全部通过（改的是层次边界，功能必须一字不变）
+    - M4 (regression): `RIPPLE`/`CLA`/`CSEL` 在 `WIDTH=32, PIPE_STAGES=0/1/2` 下的 `cell_count` 与 `critical_path_stages` 与既有记录逐位相同
+    - M5 (regression): `./scripts/fast_check.sh` 对全部 72 个参数组合 elaborate 通过
+    - M6 (regression): `results/experiments.jsonl` 中本任务开始前已有的 139 行逐字节不变
+  - Evidence:
+    - Contract: keel-task-capsule/v1 sha256:2ec126ae6a6794c21902f487d26d3e7726f7956c238bb5e54938d9c6f1939e7c
+    - M1: `<scratchpad>/depth_check.py` 用仓库流程（`run_synth`+`run_sta`，与记录同口径）在 `WIDTH=64, PIPE_STAGES=0` 下测三个网络的映射后关键路径级数 —— SKLANSKY **11** ≤ 12、KOGGE_STONE **11** ≤ 12、BRENT_KUNG **15** ≤ 16，与 RTL 的 DAG 深度（6 / 6 / 10）同阶，差值约等于外壳的 g/p、进位、sum XOR 三级
+    - M1.red: 同一命令在只标网络级 `keep_hierarchy` 的仓库状态下：SKLANSKY **47**、KOGGE_STONE **16**、BRENT_KUNG **31**，三者全部超限（上限 12/12/16）
+    - M1.green: 新增 `designs/adder32/rtl/prefix_node.v`（带 `(* keep_hierarchy *)` 的前缀算子）并把三个网络里的内联赋值改为例化它之后，级数降到 11/11/15，全部通过
+    - M2: SKLANSKY 11 与 KOGGE_STONE 11 相差 0 级（≤ 2），且两者均严格小于 BRENT_KUNG 的 15 —— 与理论级数序 `log₂N / log₂N / 2log₂N−1` 一致
+    - M2.red: 修正前 SK=47、KS=16、BK=31，`SKLANSKY < BRENT_KUNG` 不成立且 SK 与 KS 相差 31 级，理论序被完全打乱
+    - M2.green: 修正后 SK=11、KS=11、BK=15，理论序恢复
+    - M3: `<scratchpad>/func_check.py` 对三个网络 × `WIDTH=8/16/32/64` × `PIPE_STAGES=0/1/2` 共 **36 组仿真全部通过，0 失败** —— 本任务只改层次边界，功能一字未变
+    - M4: `<scratchpad>/regress_prefix.py` 对 `RIPPLE`/`CLA`/`CSEL` × `PIPE_STAGES=0/1/2`（`WIDTH=32`）重跑 synth+sta，`cell_count` 与 `critical_path_stages` 与既有记录**逐位相同，0 处不一致**
+    - M5: `./scripts/fast_check.sh` 退出码 0，覆盖全部 72 个参数组合
+    - M6: `cmp -s results/experiments.jsonl <scratchpad>/exp_before_13.jsonl` 静默返回 0 —— 本任务全程只跑 `run_sim`/`run_synth`/`run_sta`，139 行记录逐字节未动
+    - Review:
+      - Status: pass
+      - Acceptance check: E7（`keep_hierarchy` 的粒度足以保住前缀树的拓扑）由 M1+M2 满足：映射后级数从 47/16/31 降到 11/11/15，与 RTL 的 DAG 深度 6/6/10 同阶，且恢复了理论级数序。D3 的实现手段由此从「网络级标注」修正为「算子级标注」，`designs/adder32/design.md` 的模块清单从 9 个更新到 10 个并新增了「粒度」一节，把这一轮的诊断过程与数字写了进去（I5 关闭）。Q2 在 design.md 里已记录结论：最初的扇出假设是错的，真正原因是标注粒度。
+      - Scope check: 新增 1 个文件、修改 4 个文件，全部在 Touch 内。`results/experiments.jsonl` 未动（M6）。诊断与验证脚本、对照综合产物全部在 scratchpad。
+      - Findings: none
+    - Blocker: none
+    - Reauthorizations: none
+
+- [x] 1.4 提交 keep_hierarchy 粒度修正，为重跑扫参准备干净工作区
+  - Mode: repo-action
+  - Covers:
+    - E6
+  - Touch:
+    - none
+  - Verify:
+    - Strategy: evidence-first
+    - M1: `git status --porcelain` 输出为空，且 `git rev-parse HEAD` 指向包含 1.3 全部改动的提交
+  - Evidence:
+    - Contract: keel-task-capsule/v1 sha256:fd195b93ce22286578945f5636029e57829f0c90de19ec200e7718f063932a33
+    - M1: 提交 `65f0f616ba981c1840d1097f08fc553b7bc8f234`（"adder32: 把 keep_hierarchy 的粒度从网络下移到前缀算子节点"）之后 `git status --porcelain` 输出为空，`git rev-parse HEAD` = `65f0f616ba981c1840d1097f08fc553b7bc8f234`；该提交包含任务 1.3 的 `rtl/prefix_node.v` 与三个网络的改动、`designs/adder32/design.md` 的粒度一节，以及此前在旧 RTL 下跑出的 72 条记录
+    - Review:
+      - Status: pass
+      - Acceptance check: E6 要求实验记录的 provenance 正确 —— 现工作区干净且 HEAD 指向包含算子级 `keep_hierarchy` 修正的提交，任务 2.1 重跑的 72 组扫参会带上这个 commit，与此前在网络级标注下跑出的那 72 条（`git_commit` 为 `8f6e1ba`）在记录里天然可区分，不会混淆。
+      - Scope check: `Mode: repo-action`，`Touch: none` —— 未写任何工作区文件，只做了一次本地提交。未 push、未 sync、未 archive。
+      - Findings: none
+    - Blocker: none
+    - Reauthorizations: none
+
+## 2. 扫参并实测 O(log n)
+
+- [x] 2.1 全量扫参，验证前缀网络的渐进阶与可区分性
+  - Covers:
+    - experiment-trust / 功能等价的微架构取值必须产出可区分的网表
+    - experiment-trust / 依赖连线代价的结论必须标注本地流的测量边界
+    - D6
+    - F1
+    - A1
+    - A2
+    - A3
+    - Q1
+    - Q2
+    - I1
+  - Read:
+    - knowledge/arith/prefix-adders.md
+    - knowledge/README.md
+  - Autonomy boundary:
+    - Pre-authorized fallback: 若 Q1 成真（Sklansky 与 Kogge-Stone 的 `critical_path_delay_ns` 在同一位宽下相差小于 2%），可在结论里如实写「本地流分辨不出两者，需等 P&R」而不宣称两者等价；可逆界限是「只影响 `knowledge/arith/prefix-adders.md` 与本任务 Evidence 的措辞，不修改任何记录、不追加或删除参数取值」，回滚办法是改回措辞；使用后必须在 Evidence 里记录两者的实测延时与相对差值。
+    - Pre-authorized fallback: 若 Q2 成真（Sklansky 的关键路径随位宽持续劣于 Brent-Kung），可在结论里把该反转归因到「本地库驱动档位有限、高扇出节点需要缓冲树」并如实记录，而不宣称 Sklansky 的结构本身劣于 Brent-Kung；可逆界限是「只影响 `knowledge/arith/prefix-adders.md` 与本任务 Evidence 的措辞，不修改任何记录、不增删参数取值」，回滚办法是改回措辞；使用后必须在 Evidence 里记录两者在四个位宽上的级数与延时对比。
+  - Touch:
+    - results/experiments.jsonl
+    - designs/adder32/REPORT.md
+    - knowledge/arith/prefix-adders.md
+    - FOLLOWUP.md
+  - Verify:
+    - Strategy: evidence-first
+    - M1: `make -f flow/Makefile sweep DESIGN=adder32` 跑完后，新增记录覆盖 `WIDTH(4) × CARRY_STRUCT(6) × PIPE_STAGES(3)` 的全部 72 个组合，全部 `sim.passed=True`
+    - M2: `PIPE_STAGES=0, CSEL_BLOCK=4` 下六个 `CARRY_STRUCT` 取值在每一个 `WIDTH` 上的 `(cell_count, critical_path_stages)` 二元组两两互不相同
+    - M3: 三个前缀网络的 `critical_path_delay_ns` 随 `WIDTH=8/16/32/64` 的 log-log 斜率均**严格小于** CSEL 的 0.573，且均落在 [0.05, 0.50]
+    - M4: 三个前缀网络的面积 log-log 斜率与 A1 的预期比对 —— Sklansky 与 Kogge-Stone 高于 Brent-Kung，且 Brent-Kung 落在 [0.95, 1.20]
+    - M5 (regression): 本任务开始前 `results/experiments.jsonl` 已有的行逐字节不变
+    - M6: `knowledge/arith/prefix-adders.md` 的「本地实测」一节填入本次的 `experiment_id` 与结论，且该节明确写出「本地流连线代价为零、因而系统性高估 Kogge-Stone」这一测量边界
+  - Evidence:
+    - Contract: keel-task-capsule/v1 sha256:62964c64db2d4727fe837e6acd365d8a2ec26857a05e580462389efedf48798b
+    - M1: 在任务 1.3 修正 `keep_hierarchy` 粒度、1.4 提交（`65f0f61`）之后重跑扫参 —— 该 commit 下 `results/experiments.jsonl` 覆盖 `WIDTH(4) × CARRY_STRUCT(6) × PIPE_STAGES(3)` 的 **72/72** 个组合（先由 `make sweep` 跑出 34 组，中断后用 `make exp` 逐条补齐其余 38 组），`sim.passed` 全为 True，记录总数 211 行
+    - M2: `PIPE_STAGES=0` 下六个 `CARRY_STRUCT` 取值的 `(cell_count, critical_path_stages)` 二元组，在 `WIDTH=8/16/32/64` 上分别是 **6/6、6/6、6/6、6/6 唯一** —— 四个位宽上两两互不相同，满足 experiment-trust 新增需求
+    - M3: 三个前缀网络的延时 log-log 斜率 KOGGE_STONE **0.221**、BRENT_KUNG **0.368**、SKLANSKY **0.447**，**全部严格小于 CSEL 的 0.573 且落在 [0.05, 0.50]**，判据通过。对应的逻辑级数 Sklansky 8/9/10/11 与 Kogge-Stone 8/9/10/11 **逐位相同**（`l = 0`，级数 `log₂N`），Brent-Kung 9/11/13/15 每翻倍多两级（`l = log₂N − 1`），与 F3 的 Harris 分类法完全对上
+    - M4: 面积 log-log 斜率 KOGGE_STONE **1.236** > SKLANSKY **1.155** > BRENT_KUNG **1.058**，两个 O(n log n) 网络均高于 O(n) 的 Brent-Kung，且后者落在 [0.95, 1.20]，与 A1 的预期一致
+    - M5: `cmp -s <head-67> <scratchpad>/exp_before_21.jsonl` 静默返回 0 —— 本任务开始前的 67 行逐字节不变，其后的记录全部为追加
+    - M6: `knowledge/arith/prefix-adders.md` 的「本地实测」已写入三个代表 `experiment_id`（`adder32-SKLANSKY-4-0-64-b840b26c` / `adder32-KOGGE_STONE-4-0-64-871a1e82` / `adder32-BRENT_KUNG-4-0-64-d2f5c33a`）与四节结论，其中第 2 节以引用块明确写出「管脚电容在 liberty 里有、连线电容为零，因此本地流系统性高估 Kogge-Stone，表中的 39% 是上界，接 P&R 之前不要据此选型」，并指出 Brent-Kung 是三者中本地测量最可信的一个
+    - Review:
+      - Status: pass
+      - Acceptance check: E3（O(log n)）由 M3 满足，且不只是斜率 —— 级数序列 8/9/10/11 与 9/11/13/15 直接对应 Harris 的 `l = 0` 与 `l = log₂N − 1`。E2（可区分性）由 M2 满足。E4（连线边界写进结论）由 M6 满足。**Q1 已回答且答案是"能分辨，且差距随位宽拉大"**：Sklansky 与 Kogge-Stone 级数逐位相同，延时相对差 2.5% → 13.3% → 25.1% → **39.2%**，所以预授权的"分辨不出就如实写"回退**未使用**；这正是 `l + f + t` 零和约束的直接体现 —— 同样的 `l`，差别全在 `f` 与 `t`，而本地流只看得见 `f`（扇出/管脚电容）看不见 `t`（连线），故差距是对 Kogge-Stone 有利的一半账。A3（本地高估 Kogge-Stone）由此从假设变成了带数字的结论。A1 由 M4 证实。
+      - Scope check: 写了 4 个文件（`results/experiments.jsonl` 纯追加、`designs/adder32/REPORT.md` 重新生成、`knowledge/arith/prefix-adders.md`、`FOLLOWUP.md`），全部在 Touch 内。诊断阶段的 yosys/OpenSTA 对照实验与 DAG 深度模型全部在 scratchpad 中进行。
+      - Findings: Durable owner: FOLLOWUP.md — 新增第 13 条，说明旧 RTL 那批记录的口径：它们用的是只在网络模块上标 keep_hierarchy 的版本，不是废数据（是一次真实测量，测的正是结构被综合抹平长什么样），但不能当作前缀网络的 PPA 来读；读记录时按 git_commit 区分，65f0f61 及之后的才是前缀网络的真实结构数据；保留旧记录是有意的，且它们对后续的本地-参考偏差分析有参考价值。
+    - Blocker: none
+    - Reauthorizations: 任务执行中发现 `(* keep_hierarchy *)` 标错了粒度（标在网络模块而非前缀算子），修法需要改 RTL、超出本任务 Touch，故按 Out-of-scope Need 停下并记录 Blocker；经用户 2026-09-08 授权后新增任务 1.3（算子级标注）与 1.4（提交），完成后回到本任务重跑扫参。本任务自身的 Touch 与 Verify 未改动，契约指纹保持 `62964c64` 不变。

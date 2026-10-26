@@ -1,0 +1,20 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+# 参考口径（内部#202）：mode 按场景 case 接成常数、跨层次优化；REF_ADD 保层级；U1 有空输出连接（内部#205）。
+design_root: ref_root
+tops:
+  REF_TOP:
+    sim:
+      clock_signal: clk
+      reset_signal: rst_n
+    sta:
+      clocks:
+        - {name: clk, port: clk, period_ns: cli}
+      static_ports:
+        - {ports: [mode], kind: false_path, by: R.001}
+      scenarios:
+        - {name: lean, case: {mode: 1}, by: R.001}
+    synth:
+      keep_hierarchy: [REF_ADD]
+      reference_ports: [mode]
+    params:
+      W: {type: enum, role: scale, values: [8]}

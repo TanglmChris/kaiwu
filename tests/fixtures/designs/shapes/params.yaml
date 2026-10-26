@@ -1,0 +1,17 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+design_root: shapes
+tops:
+  SHAPE_COMB:
+    sim:
+      clock_signal: null
+    sta:
+      ideal_drive_ports: []
+    params:
+      DAT_W: {type: enum, role: scale, values: [8]}
+  SHAPE_REG1:
+    sim:
+      clock_signal: clk
+    sta:
+      ideal_drive_ports: []
+    params:
+      DAT_W: {type: enum, role: scale, values: [8]}

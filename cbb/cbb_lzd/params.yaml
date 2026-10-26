@@ -1,0 +1,41 @@
+# CBB_LZD 的可调参数定义。sweep.py 按这里声明的取值枚举组合；fast_check 对每个组合 elaborate + lint。
+#
+# 2026-09-30 随构件库首批落地。结构在本模块内展开、不例化其它模块
+# （add-rtl-coding-style 的 D25），所以没有要保住层级的子模块。TB 见 tb/（内部#62）。
+design_root: cbb_lzd
+
+tops:
+  CBB_LZD:
+    # 打分的归一化基线（ppa-scoring，内部#314：2026-10-15 由仓库根 scoring.yaml 原值搬来）。改它所有分数都变；不进 design_recipe，不换代。
+    score_baseline:
+      DAT_W: 2
+      MSB_EN: 0
+      SCHEME: 0
+    sim:
+      clock_signal: null
+
+    sta:
+      ideal_drive_ports: []
+
+    synth:
+      keep_hierarchy: []
+
+    params:
+      # ADDR_W 不扫：默认 $clog2(DAT_W)，更宽只是高位补 0。
+      DAT_W:
+        type: enum
+        role: scale
+        values: [2, 5, 16, 32, 33]
+      # MSB_EN 不扫（内部#72，用户 2026-10-03）：它改的是功能（找最低位 / 最高位的 1），
+      # 不是同一功能的两种实现，进前沿会把两种功能当成取舍来比。扫参取 values 第一项 0；
+      # fast_check 的组合展开与 flow/equiv 的 lsb / msb 两对照旧覆盖 0 和 1。
+      MSB_EN:
+        type: enum
+        sweep: false
+        values: [0, 1]
+      SCHEME:
+        type: enum
+        # 0 CLA、1 CLA_SHARED、2 TOOL（spec.CBB_LZD.md）
+        role: microarch
+        values: [0, 1, 2]
+        labels: {0: CLA, 1: CLA_SHARED, 2: TOOL}

@@ -1,0 +1,3 @@
+# 开源集合（flow/export/manifest.yaml 白名单）block 命中数的上限：fast_check「开源集合泄漏不增」超过它就失败（内部#365）。
+# 只许调低：清理一批后改成当时的命中数；要抬高只能在 main 上改，并在 内部#365 写明理由。10-20 取 main 7c87a641 的现值 2363；同日清掉 flow 自己带进的三份文件后调到 2309，再清掉 内部#340 的 depth 夹具后调到 319，夹具里的闭源 CBB 名也换掉后调到 55，示例与注释里的换成占位名后调到 35，test_run_by_point 改用夹具设计后调到 28；CLAUDE.md、keel/config.yaml 按用户 10-20 定移出开源集合（kaiwu-layout 48473ec6）后调到 0。
+0

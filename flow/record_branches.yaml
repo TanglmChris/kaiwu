@@ -1,0 +1,6 @@
+# 记录分支白名单（parallel-worktree「正式实验记录只在白名单分支上提交」）。
+# 只有这些分支自己的提交可以新增 results/<设计根>/experiments.jsonl 的记录行、改 REPORT.*.md；
+# 其余分支的开发记录留在工作区不提交。检查器：flow/check/fc_record_branches.py（fast_check 调用）。
+# 精确分支名、不用通配。有自己的集成分支或出报告的分支，就各加一行。
+branches:
+  - main

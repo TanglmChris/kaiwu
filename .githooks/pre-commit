@@ -1,0 +1,21 @@
+#!/bin/sh
+# 同一分支被两个 worktree 检出时拒绝提交（内部#374，用户 2026-10-21 定规格走自己的分支）。
+# 一侧提交后另一侧 HEAD 前进而索引仍旧，`git add <目录> && git commit` 会把过期索引写进提交，
+# 静默删掉对方的文件（team/roles/kaiwu-design/README.md 经验 1）；fast_check 与冒烟都查不出。
+# git 默认就不让同一分支在两处检出，撞上的是用过 --force / --ignore-other-worktrees 的情形。
+# 确实要在共用分支上提交（先核过 git status -s 与 git diff --cached --stat HEAD）：KAIWU_ALLOW_SHARED_BRANCH=1。
+branch=$(git symbolic-ref -q HEAD) || exit 0   # 分离 HEAD 不归这里管
+here=$(git rev-parse --show-toplevel)
+others=$(git worktree list --porcelain | awk -v b="$branch" -v h="$here" '
+    /^worktree / { wt = substr($0, 10) }
+    /^branch /   { if (substr($0, 8) == b && wt != h) print wt }')
+[ -z "$others" ] && exit 0
+if [ "${KAIWU_ALLOW_SHARED_BRANCH:-}" = 1 ]; then
+    printf '%s\n' "pre-commit：${branch#refs/heads/} 同时检出在 ${others}，KAIWU_ALLOW_SHARED_BRANCH=1 放行" >&2
+    exit 0
+fi
+printf '%s\n' "pre-commit：拒绝提交 —— 分支 ${branch#refs/heads/} 同时检出在别的 worktree：" "  ${others}" \
+    "  两处共用一个分支，一侧提交后另一侧的索引就过期，再提交会静默删掉对方的文件（#374）。" \
+    "  各自在自己的分支提交，按提交号合入；确实要提交，先核 git status -s 与 git diff --cached --stat HEAD，" \
+    "  再用 KAIWU_ALLOW_SHARED_BRANCH=1 git commit …" >&2
+exit 1

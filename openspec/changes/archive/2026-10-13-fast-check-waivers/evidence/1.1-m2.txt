@@ -1,0 +1,6 @@
+  已执行  SVA bind 连接名（8 条 bind、16 个 tb 文件）
+  已执行  分支未提交记录与报告（相对 merge-base acdafbae）
+  已执行  失败豁免没有过时（flow/check_waivers.yaml）
+fast_check rc=0
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+641 passed, 2 warnings in 74.63s (0:01:14)

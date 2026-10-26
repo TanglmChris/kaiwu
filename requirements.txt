@@ -1,0 +1,44 @@
+# 本仓库 .venv 的完整锁定（含传递依赖）。
+#
+#   uv pip install -r requirements.txt --python .venv/bin/python3
+#
+# 为什么要有这个文件：`docs/toolchain.md` 以前只列包名不列版本，新机器上
+# `uv pip install cocotb` 装到的是当时的最新版。而这里面有三个包能改变测量结果：
+#
+#   cocotb  —— 驱动激励的那一层：换版本，激励时序 / Timer/Clock 行为 / 波形转储
+#              的边沿都可能变 → VCD 变 → sim.total_toggles 变 → sta.dynamic_power_w 变
+#   vcdvcd  —— 解析 VCD 算翻转率，换版本等于换读数口径
+#   pyyaml  —— 读 params.yaml，决定跑的是哪组参数
+#
+# 其中 **只有 cocotb 进 `flow` 指纹**（2026-09-14 起，在 `sim` 那项里，见 内部#27 的
+# 缺口 3）。**vcdvcd 与 pyyaml 换版本能改数字而指纹一个字不变** —— 这个文件是它们
+# 目前唯一的钉子，改动它们的版本等于跨了一个指纹认不出来的边界。
+#
+# 其余（pytest / pandas / numpy / matplotlib 及其传递依赖）只影响测试与出报告，
+# 不进测量路径。
+#
+# 冻结于 2026-09-14，Linux + Python 3.11.16。产出 flow=64b3c318 那 87 条记录的
+# Mac 环境是 Python 3.9.6，且 pytest 8.4.2 / pandas 2.3.3 / numpy 2.0.2 /
+# matplotlib 3.9.4 —— 三个测量相关的包在两台机器上一致。
+cocotb==2.1.0
+contourpy==1.3.3
+cycler==0.12.1
+execnet==2.1.2
+find-libpython==0.5.1
+fonttools==4.64.0
+iniconfig==2.3.0
+kiwisolver==1.5.1
+matplotlib==3.11.1
+numpy==2.4.6
+packaging==26.3
+pandas==3.0.5
+pillow==12.3.0
+pluggy==1.6.0
+pygments==2.21.0
+pyparsing==3.3.2
+pytest==9.1.1
+pytest-xdist==3.8.0
+python-dateutil==2.9.0.post0
+pyyaml==6.0.3
+six==1.17.0
+vcdvcd==2.6.0

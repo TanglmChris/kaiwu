@@ -1,0 +1,12 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+# 面积拆分（area-breakdown，内部#174）：顶层例化两次 AREA_LEAF；AREA_MID 下有 AREA_SUB 与一个 AREA_MEM，
+# AREA_SUB 下还有一个 AREA_MEM（第 3 级）—— 存储模型合计要按实例数累计到第 3 级。
+design_root: area_root
+tops:
+  AREA_TOP:
+    sim:
+      clock_signal: clk
+    synth:
+      memory_models: [AREA_MEM]
+    params:
+      DAT_W: {type: enum, role: scale, values: [8]}

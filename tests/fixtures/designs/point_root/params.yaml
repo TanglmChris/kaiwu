@@ -1,0 +1,18 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+# 按点名取参数（内部#332，run-by-point-name）：三个带名字的 sweep_points，每个点给全三个参数；
+# NUM 声明 cross: false（叉乘只取 values[0]），取值 4 只出现在扫参点里。代替原来读的闭源设计（内部#365）。
+design_root: point_root
+tops:
+  POINT_TOP:
+    sim:
+      clock_signal: clk
+    sta:
+      ideal_drive_ports: [rst_n]
+    sweep_points:
+      - {name: pt_b1, DAT_W: 16, MODE: 1, NUM: 2}
+      - {name: pt_a0, DAT_W: 8, MODE: 0, NUM: 2}
+      - {name: pt_a1, DAT_W: 8, MODE: 1, NUM: 4}
+    params:
+      DAT_W: {type: enum, role: scale, values: [8, 16]}
+      MODE: {type: enum, role: scheme, values: [0, 1]}
+      NUM: {type: enum, role: scale, values: [2, 4], cross: false}

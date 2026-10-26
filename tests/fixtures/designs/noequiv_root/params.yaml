@@ -1,0 +1,11 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+# 声明 equiv: false 的顶层（内部#333）：netlist_equiv 对它的记录一律按声明跳过，与「一条都没选中」分开判。
+# 代替原来用的闭源设计（内部#365）。
+design_root: noequiv_root
+tops:
+  NOEQ_TOP:
+    sim:
+      clock_signal: clk
+    equiv: false
+    params:
+      DAT_W: {type: enum, role: scale, values: [8]}

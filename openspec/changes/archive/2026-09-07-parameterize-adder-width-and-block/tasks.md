@@ -1,0 +1,163 @@
+## Invalidates
+
+- I1: "现在 `adder_core.v` 里硬编码 `BLOCK(4)`（32 位 → 8 块，块间还有 7 级 mux 链）……但 BLOCK 本身应该作为一个可扫参数，而不是写死的常数" — `FOLLOWUP.md` 第 3 条。Updated by: 2.1
+- I2: "width: 32  # 固定，不作为扫描维度；流程不读这个字段" — `designs/adder32/params.yaml` 的注释。Updated by: 2.1
+- I3: "make -f flow/Makefile exp    DESIGN=adder32 PARAMS=\"CARRY_STRUCT=CLA PIPE_STAGES=1\"" — `CLAUDE.md` 常用命令一节。`WIDTH` 成为扫参维度后必须给值，该示例会报「缺少参数取值」。Updated by: 2.1
+- I4: "`BLOCK` 是这张卡最该扫的维度，而它现在还不是本仓库的扫参维度（`FOLLOWUP.md` 有记）" — `knowledge/arch-technique/precompute-lookahead.md` 参数化接口建议一节。Updated by: 3.1
+- I6: "`CLA`：对数级，明显短于 RIPPLE" — `designs/adder32/design.md` 关键路径预期一节。位宽扫参实测表明该分支的深度是综合启发式在一个 O(N²) 与或式上的产物，不具备良定义的渐进阶。Updated by: 3.1
+- I5: "本次变更 MUST NOT 新增、改名或删除 `results/experiments.jsonl` 中的任何字段" — `openspec/specs/flow-parameterization/spec.md`，归档后「本次变更」已无指代对象。Durable owner: FOLLOWUP.md
+
+## Expectation Coverage
+
+- E1: `sweep: false` 机制可用，且不改变没有该标记的设计的扫参行为 Covered by: 1.1
+- E2: 参数化不改变电路 — 历史 9 个组合的综合指标逐位复现 Covered by: 2.1
+- E3: `results/experiments.jsonl` 的字段集合不变，历史记录不被改写 Covered by: 2.1, 3.1
+- E4: 三种进位结构的位宽-延时渐进阶被实测 Covered by: 3.1
+- E5: 实验记录的 provenance 正确（干净工作区、已提交后才跑） Covered by: 2.2
+
+## 1. 流程契约：sweep: false
+
+- [x] 1.1 让 `params.yaml` 能声明「合法但不参与全量扫参」的参数
+  - Covers:
+    - flow-parameterization / 参数可以被声明为不参与全量扫参
+    - flow-parameterization / 只有不参与扫参的参数可以省略取值
+    - flow-parameterization / 流程参数必须由 params.yaml 驱动 / 参数声明携带扫参元数据
+    - D1
+    - D2
+    - D8
+  - Touch:
+    - flow/paths.py
+    - scripts/sweep.py
+  - Verify:
+    - Strategy: vertical-tdd
+    - M1: 用 scratchpad 下的 fixture 设计根（含一个 `sweep: false` 参数）调用 `param_combos`，产出的组合数等于其余参数取值个数之积，且该参数在每个组合里都等于其 `values[0]`
+    - M2: 对同一 fixture 调用 `validate_params`，省略 `sweep: false` 参数时回填 `values[0]` 并返回全部参数键；省略一个扫参维度时抛 `ParamError` 并指出缺哪些参数
+    - M3 (regression): 对未加任何 `sweep` 标记的真实设计 `designs/adder32`（本任务不修改它）调用 `param_combos` 仍产出 9 个组合
+  - Evidence:
+    - Contract: keel-task-capsule/v1 sha256:17b9f66012446f00c1ecd5c453ffc3c97b2e489afbafa90d103e16324bc94a08
+    - M1: `python3 <scratchpad>/check_sweepfalse.py <scratchpad>/fixt_root` — fixture 声明 A(2 值)/B(3 值)/C(4 值, `sweep: false`)，`param_combos` 产出 6 个组合（=2×3），每个组合的 C 恒为 `c1`，且每个组合的键集恒为 {A,B,C}。PASS
+    - M1.red: 同一命令在实现前运行：`FAIL param_combos 跳过 sweep:false 且回填 values[0]: 组合数应为 2*3=6（C 不进叉乘），实得 24`（24 = 2×3×4，C 被当成扫参维度）
+    - M1.green: 实现 `flow/paths.py` 的 `is_swept()` / `default_value()` 并改写 `param_combos` 后，同一命令 `PASS param_combos 跳过 sweep:false 且回填 values[0]`
+    - M2: 同一命令的三项断言全 PASS —— `validate_params("fixt", {A:a1, B:b1})` 返回 `{A:a1, B:b1, C:c1}`；省略扫参维度 B 抛 `ParamError` 且消息含 `B`；C 传非法值 `nope` 抛 `ParamError` 且消息列出合法取值
+    - M2.red: 实现前运行：`FAIL 省略 sweep:false 参数时回填 values[0]: ParamError: 设计 'fixt' 缺少参数取值 ['C']`（另两项「省略扫参维度仍报错」「非法取值仍被拒」实现前已 PASS，是本任务要保住而非新增的行为）
+    - M2.green: 改写 `validate_params` 的 missing 分支（只放行 `is_swept()` 为假的参数）后，三项断言全 PASS
+    - M3: 同一命令对真实设计 `designs/adder32`（本任务未修改）调用 `param_combos` 得 9 个组合，实现前后均 PASS；另 `./scripts/fast_check.sh` 退出码 0（`ok python compileall`、`ok elaborate adder32 (all param combos)`）
+    - Review:
+      - Status: pass
+      - Acceptance check: 三条 Covers 的 spec 场景各有对应断言 —— 「扫参时跳过被标记的参数」对应 M1，「被标记的参数仍可显式指定」「被标记的参数取值仍受校验」「省略一个不参与扫参的参数」「省略一个扫参维度」对应 M2，「参数声明携带扫参元数据」由 `is_swept()` 只读 `spec.get("sweep")`、不含任何参数名字面量满足。D1/D2/D8 三条决策分别落在 `sweep` 字段的引入、`values[0]` 的默认来源、以及 missing 分支只放行非扫参参数上。
+      - Scope check: 实际只改了 `flow/paths.py`（+37/-5），在 Touch 内。`scripts/sweep.py` 列在 Touch 里但**未改动**：`param_combos` 现在已把非扫参参数填进每个组合，`existing_combos` 用的是 `tuple(sorted(params.items()))`（与键顺序无关），所以 sweep.py 无需适配。fixture 与检查脚本写在 scratchpad，不在仓库内。
+      - Findings: Durable owner: FOLLOWUP.md — `--skip-existing` 在本变更后对 `adder32` 会全部落空：历史记录的 `params` 只有 2 个键，而新组合有 4 个键，集合不同故永不匹配。这是正确行为（参数集变了就是不同的实验），但续跑扫参时会重跑历史组合，值得在 FOLLOWUP 里记一笔以免下次误判为 bug。
+    - Blocker: none
+    - Reauthorizations: none
+
+## 2. 设计侧：提参且电路不变
+
+- [x] 2.1 把 `WIDTH` 与 `CSEL_BLOCK` 提成 adder32 的可配参数，且不改变电路
+  - Covers:
+    - D3
+    - D4
+    - D5
+    - D6
+    - A1
+    - A2
+    - A3
+    - I1
+    - I2
+    - I3
+  - Touch:
+    - designs/adder32/params.yaml
+    - designs/adder32/rtl/adder32.v
+    - designs/adder32/rtl/adder_core.v
+    - designs/adder32/tb/test_adder32.py
+    - designs/adder32/spec.md
+    - designs/adder32/design.md
+    - designs/adder32/verify.md
+    - CLAUDE.md
+    - FOLLOWUP.md
+  - Verify:
+    - Strategy: vertical-tdd
+    - M1: 以 `WIDTH=64 CSEL_BLOCK=8 CARRY_STRUCT=CSEL PIPE_STAGES=1` 跑一次单次实验，仿真通过且记录的 `params` 段含全部四个参数键
+    - M2 (regression): 在 `WIDTH=32 CSEL_BLOCK=4` 下重跑 9 个历史参数组合，每个组合的 `cell_count` / `area_um2` / `critical_path_delay_ns` / `critical_path_stages` 与历史记录逐位相同
+    - M3 (regression): `./scripts/fast_check.sh` 对 `WIDTH × CARRY_STRUCT × PIPE_STAGES × CSEL_BLOCK` 的全部组合 elaborate 通过（覆盖 A1 与 A3 的小位宽/大 BLOCK 退化情形）
+    - M4 (regression): `results/experiments.jsonl` 中本任务开始前已有的 28 行逐字节不变
+  - Evidence:
+    - Contract: keel-task-capsule/v1 sha256:97bb64c3a3047fcb10750805f20bcc972c7442dd1d21ddd7c7d6fea886402b11
+    - M1: `make -f flow/Makefile exp DESIGN=adder32 PARAMS="WIDTH=64 CARRY_STRUCT=CSEL PIPE_STAGES=1 CSEL_BLOCK=8"` 端到端跑通 —— `experiment_id=adder32-CSEL-8-1-64-931f728b`，`sim.passed=True`，`params={'WIDTH': 64, 'CARRY_STRUCT': 'CSEL', 'PIPE_STAGES': 1, 'CSEL_BLOCK': 8}`（4 个键齐全），`cell_count=668`、`area_um2=77.60934`
+    - M1.red: 同一命令在实现前运行：`flow.paths.ParamError: 设计 'adder32' 的 params.yaml 未声明参数 ['CSEL_BLOCK', 'WIDTH']；已声明的是 ['CARRY_STRUCT', 'PIPE_STAGES']`，make 退出码 1
+    - M1.green: 提参（`adder32.v` 加 `WIDTH`/`CSEL_BLOCK` 并把端口与内部信号改为 `WIDTH` 宽、`adder_core.v` 透传 `CSEL_BLOCK`、`params.yaml` 声明四个参数、tb 按 `WIDTH` 生成激励）后，同一命令产出上述记录
+    - M2: `<scratchpad>/repro_check.py` 在 `WIDTH=32, CSEL_BLOCK=4` 下对 9 个历史组合各跑一次 `run_synth`+`run_sta`（产物落 scratchpad，**不追加记录**），四个指标与历史逐位比对结果 `9 个组合，0 处不一致`：CLA p0/p1/p2 = 174/192/222 cells、16.73784/22.78854/29.13084 µm²、cp 0.697688/0.443244/0.312482 ns、22/16/14 级；CSEL 313/346/382、32.67378/39.87630/46.62684、0.456766/0.306239/0.252315、15/13/12；RIPPLE 96/130/160、12.59712/19.78506/26.12736、0.986530/0.506556/0.365567、34/20/16
+    - M3: `./scripts/fast_check.sh` 退出码 0，覆盖 `WIDTH × CARRY_STRUCT × PIPE_STAGES` 的 36 个组合（含 `WIDTH=8, PIPE_STAGES=2` 的 2/2/4 分段，覆盖 A1）；`CSEL_BLOCK` 维度因 `sweep: false` 掉出 `param_combos`，另手工补跑 `WIDTH×PIPE_STAGES×CSEL_BLOCK` 共 48 个 CSEL 组合的 iverilog elaborate，全部通过（含 `WIDTH=8, PIPE=2, BLOCK=16` 的 `NBLOCKS=1` 退化情形，覆盖 A3）
+    - M4: M1 的验证记录写完即从 `results/experiments.jsonl` 删除（工作区脏，按 D7 不留），`cmp -s results/experiments.jsonl <scratchpad>/exp_baseline.jsonl` 静默返回 0 —— 28 行与任务开始前逐字节相同，`git status --short results/` 无输出
+    - Review:
+      - Status: pass
+      - Acceptance check: D6（首要验收）由 M2 满足 —— 9 个历史组合的 `cell_count`/`area_um2`/`critical_path_delay_ns`/`critical_path_stages` 零差异，说明参数化只改变了可配置性、没有改变电路，因而此前所有跨结构结论（含 design.md 的 F2）继续成立。D3（`CSEL_BLOCK.values` 以 4 打头）与 D4（`WIDTH` 为普通扫参维度、values 为 2 的幂）落在 `params.yaml`；D5（不改设计名）落在 `spec.md` 新增的说明段。A1/A3 由 M3 的两组 elaborate 验证，A2 的持有者已写进 `designs/adder32/verify.md`。
+      - Scope check: 改动 9 个文件，全部在 Touch 内（`flow/paths.py` 的改动来自已完成的任务 1.1，本任务未再动它）。fixture、对照脚本、baseline 备份、elaborate 产物全部写在 scratchpad，仓库内无临时文件。未触碰 `results/experiments.jsonl` 的最终内容。
+      - Findings: Durable owner: FOLLOWUP.md — 新增第 9 条记录 `sweep: false` 的两个盲点：(a) `scripts/fast_check.sh` 遍历 `param_combos()`，因此不再覆盖被标记参数的非默认取值（本次靠手工补跑 48 个组合兜住，长期应改 `fast_check.sh`）；(b) `SKIP_EXISTING` 对 adder32 会全部落空，因为历史记录的 `params` 是 2 键、新组合是 4 键，集合不同故永不匹配——这是正确行为，但续跑时会重跑历史组合，记一笔免得下次误判为 bug。Resolved here: `designs/adder32/spec.md` 里三处与本变更无关的既有过时表述（写死「32 位加法器」与 32 位接口表、早已取消的 `carry_structure → CARRY_STRUCT` 映射层、指向 `CLAUDE.md 遗留第 3 条` 的失效指针——该条目已在 2026-09-06 移入 `FOLLOWUP.md`）在改写参数一节时一并修正。
+    - Blocker: none
+    - Reauthorizations: none
+
+- [x] 2.2 提交实现，为记录实验准备干净且已提交的工作区
+  - Mode: repo-action
+  - Covers:
+    - D7
+    - E5
+  - Touch:
+    - none
+  - Verify:
+    - Strategy: evidence-first
+    - M1: `git status --porcelain` 输出为空，且 `git rev-parse HEAD` 指向包含 1.1 与 2.1 全部改动的提交
+  - Evidence:
+    - Contract: keel-task-capsule/v1 sha256:d728be9dbf36b4a43fc4130ae7cd70ea2c6006c8f6e275fae7818edb2f2aefb3
+    - M1: 提交 `2b6614d2ce4f9f6f0dea6c2895de8b7c4f08de84`（"flow+adder32: 把 WIDTH 与 CSEL_BLOCK 提成可扫参数"）之后 `git status --porcelain` 输出为空，`git rev-parse HEAD` = `2b6614d2ce4f9f6f0dea6c2895de8b7c4f08de84`；该提交包含任务 1.1 的 `flow/paths.py` 与任务 2.1 的 9 个文件，以及本变更的 OpenSpec 产物
+    - Review:
+      - Status: pass
+      - Acceptance check: D7 要求「跑任何实验前工作区必须干净并已提交」，因为 `run_experiment.py` 会把 `git rev-parse HEAD` 写进每条记录；现工作区干净且 HEAD 指向包含全部实现的提交，任务 3.1 写出的记录 provenance 正确。
+      - Scope check: `Mode: repo-action`，`Touch: none` —— 未写任何工作区文件，只做了一次提交。未 push、未 sync、未 archive。用户 2026-09-07 在会话中显式授权了本次提交。
+      - Findings: none
+    - Blocker: none
+    - Reauthorizations: none
+
+## 3. 跑扫参，实测位宽-延时渐进阶
+
+- [x] 3.1 全量扫参并记录，量出三种结构的位宽-延时曲线
+  - Covers:
+    - F2
+    - Q1
+    - I4
+    - E4
+  - Read:
+    - knowledge/arch-technique/pipelining.md
+    - knowledge/arith/prefix-adders.md
+  - Autonomy boundary:
+    - Pre-authorized fallback: 若 Q1 成真（三条位宽-延时曲线在 log-log 上的斜率无法区分），可在 `designs/adder32/params.yaml` 的 `WIDTH.values` 追加 `128` 并只重跑该位宽；可逆界限是「只向 `values` 列表追加、不修改或删除已有取值、不触碰其余任何产物」，回滚办法是删掉追加的那一项；使用后必须在 Evidence 里记录追加前与追加后的三条曲线斜率对比。
+  - Touch:
+    - results/experiments.jsonl
+    - designs/adder32/REPORT.md
+    - designs/adder32/params.yaml
+    - designs/adder32/design.md
+    - FOLLOWUP.md
+    - knowledge/arch-technique/precompute-lookahead.md
+    - knowledge/arch-technique/pipelining.md
+  - Verify:
+    - Strategy: evidence-first
+    - M1: 全量扫参完成后，`results/experiments.jsonl` 新增的记录覆盖 `WIDTH × CARRY_STRUCT × PIPE_STAGES` 的全部 36 个组合，每条的 `params` 段含全部四个参数键
+    - M2: `CARRY_STRUCT=CSEL PIPE_STAGES=0 WIDTH=32` 下扫 `CSEL_BLOCK` 的四个取值，四条记录的 `area_um2` 与 `critical_path_stages` 互不相同（投机粒度确实改变了电路）
+    - M3: `PIPE_STAGES=0, CSEL_BLOCK=4` 下 RIPPLE 与 CSEL 的 `critical_path_delay_ns` 随 `WIDTH=8/16/32/64` 单调递增，其 log-log 斜率分别落在 O(n) 与 O(√n) 的预期区间（RIPPLE ∈ [0.85, 1.15]，CSEL ∈ [0.35, 0.65]），且三者中 RIPPLE 的 64/8 相对增幅严格最大
+    - M4 (regression): 本任务开始前 `results/experiments.jsonl` 已有的行逐字节不变
+    - M5 (regression): `make -f flow/Makefile report DESIGN=adder32` 连跑两次产出的 `REPORT.md` 逐字节相同
+    - M6: `CLA` 分支的面积 log-log 斜率显著高于另两者（CLA > 1.15，RIPPLE 与 CSEL 均 ∈ [0.95, 1.05]），该缺陷已写入 `FOLLOWUP.md`，且 `designs/adder32/design.md` 里「`CLA`：对数级」的表述已按实测改正
+  - Evidence:
+    - Contract: keel-task-capsule/v1 sha256:aefb9cecc08699a0f367d39774cd922743328e65a724f2ae27cd400f927e3e3f
+    - M1: `make -f flow/Makefile sweep DESIGN=adder32` 退出码 0；`results/experiments.jsonl` 由 28 行增至 64 行，新增记录覆盖 `WIDTH × CARRY_STRUCT × PIPE_STAGES` 的 **36/36** 个组合，全部 `sim.passed=True`，每条 `params` 段恰有 4 个键（`CSEL_BLOCK` 因 `sweep: false` 恒为默认 4）
+    - M2: 补跑 `CSEL_BLOCK=2/8/16`（`WIDTH=32, CSEL, PIPE_STAGES=0`）后共 67 行。四档 `area_um2` **互异 4/4**（35.2253 / 32.6738 / 31.8281 / 31.6532，随 BLOCK 增大单调下降），延时呈 **U 形**：0.5746 / 0.4568 / **0.4399** / 0.6990 ns，最优块宽 8（√32 ≈ 5.66）
+    - M3: `PIPE_STAGES=0, CSEL_BLOCK=4`，`WIDTH=8/16/32/64` —— RIPPLE 0.2414/0.4898/0.9865/1.9801 **单调**、延时 log-log 斜率 **1.012** ∈ [0.85, 1.15]（O(n)）；CSEL 0.2103/0.2719/0.4568/0.6650 **单调**、斜率 **0.573** ∈ [0.35, 0.65]（O(√n)）；64/8 相对增幅 RIPPLE **8.20×** 严格大于 CSEL 3.16× 与 CLA 2.43×
+    - M4: 本任务开始前的 28 行与 `<scratchpad>/exp_before_31.jsonl` 逐字节相同，新记录只做追加
+    - M5: `make -f flow/Makefile report DESIGN=adder32` 连跑两次，`REPORT.md` 逐字节相同
+    - M6: 面积 log-log 斜率 CLA **1.239** > 1.15，RIPPLE **1.000**、CSEL **1.002** 均 ∈ [0.95, 1.05]；`FOLLOWUP.md` 新增第 11 条记录该缺陷（含诊断、证据与修法）；`designs/adder32/design.md` 中「`CLA`：对数级」已按实测改写，全文再无该表述
+    - Review:
+      - Status: pass
+      - Acceptance check: E4（三种结构的位宽-延时渐进阶被实测）由 M3+M6 共同满足 —— RIPPLE 与 CSEL 的斜率分别落在 O(n) 与 O(√n) 的预期区间且面积斜率均为 1.00，而 CLA 被证实**没有**良定义的渐进阶（这本身就是位宽扫参最有价值的产出，见下）。F2（三种结构的流水加速比是渐进阶的倒序）现在有了正确的基准：用同结构半宽的实测延时当理想值，切 2 段的效率是 RIPPLE 96.7% / CLA 92.8% / CSEL 88.8%，都落在寄存器开销能解释的范围内 —— 这纠正了 `pipelining.md` 早先用线性理想算出的 74~79%。I4 由 `precompute-lookahead.md` 的块宽曲线结论关闭，I6 由 `design.md` 的改写关闭。Q1 未触发：4 个位宽点已足以分辨（1.012 vs 0.573 相距甚远），预授权的 `WIDTH=128` 回退**未使用**。
+      - Scope check: 写了 7 个文件，全部在（扩容后的）Touch 内：`results/experiments.jsonl`（+39 行，纯追加）、`designs/adder32/REPORT.md`、`designs/adder32/design.md`、`FOLLOWUP.md`、两张知识卡。`designs/adder32/params.yaml` 列在 Touch 但**未改动**（Q1 回退未触发，无需追加 `WIDTH=128`）。
+      - Findings: Durable owner: FOLLOWUP.md — 新增第 11 条（`adder32` 的 `CLA` 分支 `designs/adder32/rtl/flat_lookahead.v` 是完全平铺的与或式而非真前缀网络，naive 规模 O(N²)、深度靠 ABC 事后重构，因而没有良定义的渐进阶；其单点数据仍有效，但不能支持任何 O(log n) 论断、也不能跨位宽比较；修法是换成真前缀网络 Sklansky / Kogge-Stone / Brent-Kung，属独立变更、不在本变更授权内）与第 12 条（`CSEL_BLOCK=4` 是次优点，8 在面积和延时上同时更优，故历史 CSEL 数据低估了 CSEL；默认值有意保持 4 以维持与历史记录的口径一致）。
+    - Blocker: none
+    - Reauthorizations: 任务执行中扩容了 Touch 与 Verify —— 原 M3 要求三种结构延时均单调，被 CLA 的非单调证伪；诊断表明那是 RTL 缺陷而非测量问题，于是把 M3 收窄为「RIPPLE 与 CSEL 单调且斜率符合预期」，另加 M6 把 CLA 缺陷本身变成一项可验的检查，并把 `designs/adder32/design.md` 与 `FOLLOWUP.md` 加进 Touch 以便就地改正失效表述与登记缺陷。已用 `task-start --record` 重记指纹（8cec59a6 → aefb9cec），前一份契约下的证据全部作废并重新验证。用户 2026-09-07 授权了这一收窄方向。

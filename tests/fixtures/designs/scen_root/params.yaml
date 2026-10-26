@@ -1,0 +1,28 @@
+# 测试夹具，不是被测设计：只在 tests/conftest.py 的 fixture_designs 打开时对流程可见。
+# depth 的验收场景（内部#189）：静态输入 mode 选两条链之一；mode=0 走深链（超预算），mode=1 走浅链（不超）。
+design_root: scen_root
+tops:
+  SCEN_TOP:
+    sim:
+      clock_signal: clk
+    sta:
+      clocks:
+        - {name: clk, port: clk, period_ns: cli}
+      scenarios:
+        - {name: deep, case: {mode: 0}, by: R.001}
+        - {name: shallow, case: {mode: 1}, by: R.001}
+    params:
+      DAT_W: {type: enum, role: scale, values: [8]}
+  SCEN_WHEN_TOP:
+    # 内部#198：两份参数组合各只对应一个场景（when），只量适用的那个
+    sim:
+      clock_signal: clk
+    sta:
+      clocks:
+        - {name: clk, port: clk, period_ns: cli}
+      scenarios:
+        - {name: deep, case: {mode: 0}, by: R.001, when: {PICK: 0}}
+        - {name: shallow, case: {mode: 1}, by: R.001, when: {PICK: [1]}}
+    params:
+      DAT_W: {type: enum, role: scale, values: [8]}
+      PICK: {type: enum, role: scale, values: [0, 1]}
