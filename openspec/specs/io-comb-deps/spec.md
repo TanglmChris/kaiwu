@@ -35,7 +35,7 @@
 
 ### Requirement: LRS 必须用固定写法声明接口组合依赖
 
-在 `params.yaml` 里声明了 `iodeps_configs` 的顶层，它的 LRS MUST 有且只有一张「接口组合依赖」表。
+在 `params.yaml` 里声明了 `iodeps_configs` 的顶层，它的接口文档 MUST 有且只有一张「接口组合依赖」表。接口文档是设计根里的 `lrs.<顶层>.md`；没有 LRS 的通用构件（`cbb/` 下按 `flow/templates/cbb-root/` 只写精简规格的）是 `spec.<顶层>.md`，两者都有时以 LRS 为准（内部#415）。下文的「LRS」都指这份接口文档；「允许的接口组合环」表也从同一份文档读。
 - **认表**：表头前两格依次是「输出」「允许组合依赖的输入」。
 - **「输出」格**：反引号写的端口名或通配。
 - **「允许组合依赖的输入」格**：
@@ -48,6 +48,11 @@
 
 - **WHEN** 「允许组合依赖的输入」格的某一段里，除了反引号端口、「无」、条件前缀与括号说明，还有别的文字
 - **THEN** 检查 SHALL FAIL，并指出 LRS 的行号
+
+#### Scenario: 通用构件只有精简规格
+
+- **WHEN** `cbb/<目录>/` 下的顶层声明了 `iodeps_configs`，设计根里只有 `spec.<顶层>.md`、没有 `lrs.<顶层>.md`
+- **THEN** 检查 SHALL 从 `spec.<顶层>.md` 读「接口组合依赖」表
 
 #### Scenario: 同名绑定
 
@@ -140,6 +145,18 @@
 ### Requirement: 前缀分不进组的端口必须显式声明
 
 不计的端口（时钟、复位、`sta.static_ports`）之外，名字不符合 `<侧>_<通道>_` 前缀的顶层端口，MUST 在 `params.yaml` 的 `tops:<顶层>:iodeps_loops:` 里声明：`peers` 归到某个对方，或 `no_peer` 表示外部不组合送回。有未声明的端口时，这组 MUST 判 FAIL，并一次列出全部未声明的端口。
+
+第一段是方向 `i` / `o`、后面还有一段的端口（通用构件的 `i_src_vld`、`o_dst_rdy`），第一段 MUST 当方向读，对方与通道取第二段（`src`、`dst`），MUST NOT 把 `i` / `o` 当成对方。按对方整体一条外部边都没连上时，结果里 MUST 提示「外部模型没有连上任何边」，不判 FAIL，MUST NOT 静默给出 0 个环（内部#449）。
+
+#### Scenario: 通用构件的方向前缀
+
+- **WHEN** 顶层端口是 `i_src_vld`、`o_src_rdy`、`i_dst_rdy`、`o_dst_vld`，没有声明 `peers`
+- **THEN** 它们分到对方 `src` 与 `dst`；`o_dst_vld` 组合依赖 `i_dst_rdy` 时 SHALL 报出环
+
+#### Scenario: 外部模型连不上边
+
+- **WHEN** 分组之后，按对方整体没有任何一条外部边
+- **THEN** 结果里 SHALL 有「外部模型没有连上任何边」的提示，这组不因此判 FAIL
 
 #### Scenario: 中断输出没声明
 

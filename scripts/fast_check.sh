@@ -224,7 +224,7 @@ if [ "$HAVE_VL" = 1 ]; then
     fi
 fi
 # 设计树名单只有一处权威：flow/paths.py 的 DESIGN_TREES（designs/、cbb/，kaiwu-layout-decouple D4，
-# kaiwu-layout-in-place，内部#305）。下面 bash 里的循环由它派生；内嵌的 Python 用
+# 2026-10-15 搬回，内部#305）。下面 bash 里的循环由它派生；内嵌的 Python 用
 # flow.paths 的 tree_glob / is_cbb_path / local_cbb_copies，不再各写一份 designs/*、cbb/*。
 read -r -a DESIGN_TREES <<< "$("$PY" -c 'from flow.paths import DESIGN_TREES; print(*DESIGN_TREES)')"
 DESIGN_PARAMS=()

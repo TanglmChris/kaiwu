@@ -4,7 +4,8 @@
 
 扫 `--ref` 提交的开源集合（`leak_scan.py` 的口径：白名单、block 规则的出现次数），与 `flow/export/leak_baseline.txt`
 里的基线比：
-- 超过基线 → 退出 1，并用同一份清单扫 merge-base（`git merge-base <ref> <base-branch>`），按文件列出多出来的次数；
+- 超过基线 → 退出 1，并用同一份清单扫 merge-base（`git merge-base <ref> <base-branch>`；本地 base-branch 落后于 origin 上的
+  同名分支时用后者，内部#448），按文件列出多出来的次数；merge-base 的树对不上当前清单时改为按文件列命中最多的；
   只列文件与次数，不打印命中的那一行（那一行就是闭源名字）；
 - 基线比 merge-base 上的高 → 退出 1：基线只许调低，要抬高只能在 main 上改并在 内部#365 写明理由；
 - 低于基线 → 退出 0，提示可以调到的值（清理与调低基线可以分两个提交）。
@@ -45,8 +46,27 @@ def blocked_by_file(repo, ref, manifest):
     return out
 
 
+def _base_ref(repo, base_branch):
+    """求 merge-base 用的分支：本地分支落后于 origin 上的同名分支（是它的祖先）时用后者（内部#448）。
+
+    各 worktree 共用一个本地 main，平时没人让它前进；chief 推的是 origin/main。没有远端引用（夹具仓）、
+    本地缺这个分支、两者分叉，或者调用方已经给了带 `/` 的引用时，照旧用 base_branch。"""
+    def ok(r):
+        return subprocess.run(["git", "-C", str(repo), "rev-parse", "--verify", "--quiet", r],
+                              capture_output=True).returncode == 0
+    remote = f"origin/{base_branch}"
+    if "/" in base_branch or not ok(remote):
+        return base_branch
+    if not ok(base_branch):
+        return remote
+    behind = subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", base_branch, remote],
+                            capture_output=True).returncode == 0
+    return remote if behind else base_branch
+
+
 def check(repo, ref="HEAD", base_branch="main"):
     """(退出码, 输出行)。"""
+    base_branch = _base_ref(repo, base_branch)
     mb = subprocess.run(["git", "-C", str(repo), "merge-base", ref, base_branch], capture_output=True, text=True)
     base = mb.stdout.strip() if mb.returncode == 0 else None
     for path, what in ((leak_scan.MANIFEST, "开源白名单"), (BASELINE, "基线")):
@@ -81,9 +101,15 @@ def check(repo, ref="HEAD", base_branch="main"):
         sha = subprocess.run(["git", "-C", str(repo), "rev-parse", ref], capture_output=True, text=True).stdout.strip()
         grew = []
         if base and base != sha:
-            old = blocked_by_file(repo, base, manifest)   # 同一份清单，清单改了也可比
-            grew = sorted((p, n - old.get(p, 0)) for p, n in head.items() if n > old.get(p, 0))
-            lines += [f"  {p} +{d}" for p, d in grew]
+            try:
+                old = blocked_by_file(repo, base, manifest)   # 同一份清单，清单改了也可比
+            except leak_scan.ManifestError as e:
+                # merge-base 的树对不上当前清单（如替换源在那里还不存在，内部#448）：不换清单去扫，那就不是同一把尺子了
+                lines.append(f"  merge-base {base[:12]} 的树对不上当前清单（{e}），看不出逐文件新增")
+                old = None
+            if old is not None:
+                grew = sorted((p, n - old.get(p, 0)) for p, n in head.items() if n > old.get(p, 0))
+                lines += [f"  {p} +{d}" for p, d in grew]
         if not grew:   # 在 main 上（merge-base 就是自己）或没有哪个文件变多：列命中最多的文件
             lines.append("  相对 merge-base 看不出新增，按文件列命中最多的 10 个：")
             lines += [f"  {p} {n}" for p, n in sorted(head.items(), key=lambda kv: (-kv[1], kv[0]))[:10]]
@@ -100,7 +126,8 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--repo", default=str(leak_scan.REPO_ROOT))
     ap.add_argument("--ref", default="HEAD")
-    ap.add_argument("--base-branch", default="main", help="求 merge-base 的分支（默认 main）")
+    ap.add_argument("--base-branch", default="main",
+                    help="求 merge-base 的分支（默认 main；本地落后于 origin 上的同名分支时用后者，#448）")
     a = ap.parse_args(argv)
     try:
         rc, lines = check(a.repo, a.ref, a.base_branch)

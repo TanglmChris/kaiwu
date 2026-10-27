@@ -130,12 +130,24 @@
 
 仓库 MUST 在 `flow/export/leak_baseline.txt` 记一个基线：开源集合 block 命中数的上限。`./scripts/fast_check.sh` MUST 扫 HEAD 提交的开源集合，block 命中数超过基线时失败，并按文件列出比 merge-base 多出来的命中次数（MUST NOT 打印命中的原文）。HEAD 上的基线高于 merge-base 上的基线时 MUST 失败。清单或基线在 merge-base 上存在、而 HEAD 上被删掉或写坏时 MUST 失败，MUST NOT 记为未执行。命中数低于基线时 MUST 提示可以调低的值。
 
+merge-base 取 HEAD 与 main 的：本地 `main` 落后于 `origin/main`（是它的祖先）时 MUST 用 `origin/main`，因为各 worktree 共用的本地 main 平时没人让它前进（内部#448）。拿 merge-base 的树做逐文件对比时，那棵树对不上当前清单（例如清单里的替换源在那棵树里还不存在）MUST NOT 让检查崩溃：照旧按命中数判，改为按文件列出命中最多的文件。
+
 理由：泄漏扫描不在门禁里时，开源集合的 block 命中一天内从 98 涨到 2363，清了还会再涨（内部#365，用户 10-20 定先做门禁）。
 
 #### Scenario: 新提交往开源路径写了闭源名字
 
 - **WHEN** 基线 100，HEAD 的提交在 `tests/test_x.py` 里新增 3 处 block 命中，合计 103
 - **THEN** fast_check 失败，列出 `tests/test_x.py +3`，不打印那几行
+
+#### Scenario: 本地 main 落后于远端 main
+
+- **WHEN** 本地 `main` 停在旧提交，分支合了更新的 `origin/main`，又新增了 block 命中
+- **THEN** merge-base 按 `origin/main` 求，按文件列出相对它多出来的命中
+
+#### Scenario: merge-base 的树对不上当前清单
+
+- **WHEN** 当前清单里的替换源在 merge-base 的树里不存在，命中数又超过基线
+- **THEN** 检查照旧失败，按文件列出命中最多的文件，MUST NOT 以异常退出
 
 #### Scenario: 分支删掉基线文件
 
@@ -249,7 +261,8 @@
 
 仓库 MUST 提供 `flow/export/open_check.py --ref <提交>`，按顺序完成评审要跑的机械检查，并打印一张逐项结论表（ok / FAIL / warn）：
 - 导出（含泄漏扫描）：调 `export.py`，block 命中或白名单无效即 FAIL；
-- 悬空引用与死链：只报 warn，不影响退出码；
+- 悬空引用：目标是 `openspec/changes/archive/` 下的闭源文件或目录时，「闭源归档引用」一项 FAIL，逐条列出，不中断后面的步骤；其余悬空引用只报 warn。归档路径里带 `*` 的按被扫提交的树展开，匹配到的全是闭源内容才算；别处的通配不展开；
+- 死链：只报 warn，不影响退出码；
 - `--quick` 到此为止，另外把导出目录 `git init -b main` 并提交一次；
 - 完整模式继续：照 `docs/quickstart.md` 第 1 步在导出目录里从零建 venv、装 `requirements.txt`，MUST NOT 复用或软链已有的 venv；EDA 工具不在 `PATH` 时补 `~/tools/env.sh`，仍缺即以退出 2 结束；子进程以激活该 venv 的 `PATH` 跑 `./scripts/fast_check.sh` 与 `pytest tests/ -m 'not flow'`；
 - pytest 合格 MUST 同时满足：退出 0、无失败、无错误、有通过，且每条跳过的原因都含「不在导出集合」；
@@ -257,6 +270,8 @@
 任一 FAIL 退出 1，全部合格退出 0。
 
 理由：内部#409 各方手跑导出目录的检查，方法不一、步骤会漏；预检之后引入的回归（Q2）没人在冻结前重跑，软链现成 venv 又漏了 quickstart 第 1 步（Q1）（内部#441 R4）。
+
+闭源归档一项升 FAIL：开源文本引用外人打不开的归档 change 及其证据，`fd6385ef` 上有 19 处、另有 10 处通配写法当时认不出（用户 10-27 定，内部#444）。
 
 #### Scenario: 悬空引用按 warn 列出
 
@@ -278,6 +293,16 @@
 - **WHEN** 开源集合里有 block 命中
 - **THEN** 导出一项 FAIL，以退出 1 结束，不再跑后面的步骤
 
+#### Scenario: 引用闭源归档判失败
+
+- **WHEN** 开源文件写了闭源的 `openspec/changes/archive/2026-01-01-secret-change/evidence/pair.txt`
+- **THEN** 「闭源归档引用」一项 FAIL，列出该文件与行号，以退出 1 结束；死链与 git init 照样执行
+
+#### Scenario: 通配写法按展开结果判
+
+- **WHEN** 开源文件写了 `openspec/changes/archive/*-secret-change/evidence/`（匹配到的全是闭源）、`openspec/changes/archive/*-open-change/design.md`（匹配到开源归档）与 `cbb/**`（匹配到开源文件）
+- **THEN** 只有第一处列进「闭源归档引用」；后两处既不 FAIL 也不进悬空引用
+
 ### Requirement: 开源评审按泄漏类清单
 
 开源评审（内部#409 第二部分的各评审方）MUST 按下面的泄漏类逐类给结论，不只按「扫了哪些词」。每类由所列自动检查兜住；标了「人工」的，评审方 MUST 另做那一步。
@@ -291,7 +316,7 @@
 | 私有仓名与链接 | 导出器改写 issue 链接；`leak_scan` warn：`private-repo*` | 逐条看 `private-repo-link` |
 | 私有提交号 | 无 | 看改动里 7–12 位十六进制串，REPORT 的来源提交号除外 |
 | 派生自闭源数据的文件（REPORT、拷真实闭源文件的夹具） | `open_check`：悬空引用、导出目录 pytest | 核 REPORT 与当前记录同代 |
-| 悬空引用、死链 | `open_check`：warn | 逐条看 warn |
+| 悬空引用、死链 | `open_check`：引用闭源归档（`openspec/changes/archive/**`）FAIL，其余 warn | 逐条看 warn |
 | 文档能照着跑通 | `open_check` 完整模式 | — |
 | 非技术语境（白名单 `competition` 规则所列的词） | `leak_scan` block：`competition` | chief 整体口径 |
 

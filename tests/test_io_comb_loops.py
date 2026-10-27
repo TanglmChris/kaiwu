@@ -122,3 +122,38 @@ def test_parse_allowed_table():
     assert icl.parse_allowed("没有表\n") == []
     with pytest.raises(icl.GroupError, match="第 3 行"):
         icl.parse_allowed("| 环上端口 |\n|---|\n| `a` 和 `b` |\n")
+
+
+# --- 通用构件的方向前缀（内部#449，内部#446 实测）：i_ / o_ 是方向，不是对方 ------------------------------------------
+# 端口照 CBB_SKID_BUF 原样。不认方向段时全部输入归到「对方 i」、全部输出归到「对方 o」，外部边一条也连不上，
+# 环检查恒为 0 且不提示。
+
+SKID = {"i_src_vld": "input", "i_src_dat": "input", "o_src_rdy": "output",
+        "o_dst_vld": "output", "o_dst_dat": "output", "i_dst_rdy": "input"}
+
+
+def test_direction_prefix_is_read_as_direction_not_peer():
+    groups = icl.group_ports(SKID, {})
+    assert {n: g[0] for n, g in groups.items()} == {
+        "i_src_vld": "src", "i_src_dat": "src", "o_src_rdy": "src",
+        "o_dst_vld": "dst", "o_dst_dat": "dst", "i_dst_rdy": "dst"}, groups
+
+
+def test_valid_depending_on_ready_is_caught_without_declaring_peers():
+    r = icl.check({"o_dst_vld": {"i_dst_rdy"}}, SKID, {}, [], [])
+    assert [l["ports"] for l in r["peer_loops"]] == [["i_dst_rdy", "o_dst_vld"]]
+    assert not r["passed"]
+
+
+def test_two_segment_direction_ports_still_need_declaring():
+    with pytest.raises(icl.GroupError) as e:
+        icl.group_ports({"i_req": "input", "o_gnt": "output"}, {})
+    assert "i_req" in str(e.value) and "o_gnt" in str(e.value)
+
+
+def test_no_external_edge_is_reported_not_silent():
+    """每个端口自成一个对方：外部模型一条边都连不上，结果里要说出来；不因此判 FAIL。"""
+    decl = {"peers": {f"p{i}": [n] for i, n in enumerate(sorted(SKID))}}
+    r = icl.check({"o_dst_vld": {"i_dst_rdy"}}, SKID, decl, [], [])
+    assert r["peer_loops"] == [] and r["passed"]
+    assert any("外部模型没有连上任何边" in n for n in r["loop_notes"]), r

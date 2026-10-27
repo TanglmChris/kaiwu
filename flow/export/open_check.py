@@ -7,6 +7,8 @@
 - 悬空引用（warn）：导出文本里形如路径的词，在被扫提交的树里存在、却不在开源集合里；或只出现在闭源文件里的代码文件名
   （`.py` / `.v` / `.sv` / `.sh` / `.tcl`，私有脚本名那一类；`experiments.jsonl` 这类通用的数据文件名不算）。
   白名单本身永远闭源，引用它是有意的，不报；
+- 闭源归档引用（FAIL）：上面的悬空引用里，目标在 `openspec/changes/archive/` 下的单列，命中即 FAIL，不中断后面的步骤（内部#444）。
+  归档路径里带 `*` 的按树展开，匹配到的全是闭源内容才算；别处的通配（`results/*/experiments.jsonl` 这类讲概念的写法）不展开；
 - 死链（warn）：导出目录里 Markdown 的相对链接目标不存在；代码块与行内代码里的、含 `<`、`…` 的模板占位不报；
 - 导出目录 `git init -b main` 并提交一次（公开仓的读者拿到的是 git 仓库）。
 `--quick` 到此为止。完整模式接着照 quickstart 第 1 步在导出目录从零建 venv（不复用、不软链），EDA 工具不在 PATH 时
@@ -15,6 +17,7 @@
 任一 FAIL 退出 1，全部合格退出 0；warn 不影响退出码。
 """
 import argparse
+import fnmatch
 import re
 import subprocess
 import sys
@@ -31,7 +34,8 @@ from flow import budget  # noqa: E402  merge_check 已把仓库根放进 sys.pat
 EXPORT = Path(__file__).resolve().parent / "export.py"
 ALLOWED_SKIP = "不在导出集合"      # 读闭源记录 / 白名单的用例，跳过原因里都带这一句（open-export「导出结果自足」）
 _SKIPPED = re.compile(r"^SKIPPED \[\d+\] (.+)$", re.M)
-_PATHLIKE = re.compile(r"[A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)+")
+_PATHLIKE = re.compile(r"[A-Za-z0-9_.*\-]+(?:/[A-Za-z0-9_.*\-]+)+")     # 带 `*` 的是通配写法，归档路径的按树展开
+ARCHIVE = "openspec/changes/archive/"     # 归档 change：有开源的、有闭源的，引用闭源的那些判 FAIL
 _FILENAME = re.compile(r"(?<![\w/.\-])[A-Za-z0-9_\-]+\.(?:py|v|sv|sh|tcl)(?![\w/\-])")   # 只看代码文件名，同 closed_vocab
 _INLINE_CODE = re.compile(r"`[^`\n]*`")    # 反引号里的「链接」是例子，Markdown 不渲染
 _MDLINK = re.compile(r"(?<!!)\[[^\]\n]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)|!\[[^\]\n]*\]\(([^)\s]+)\)")
@@ -57,13 +61,24 @@ def dangling_refs(repo, ref, out):
     closed_dirs = {"/".join(p.split("/")[:k]) for p in closed for k in range(1, p.count("/") + 1)} - open_dirs
     names = ({p.rsplit("/", 1)[-1] for p in closed} - {p.rsplit("/", 1)[-1] for p in opened}
              - {leak_scan.MANIFEST.rsplit("/", 1)[-1]})
+    closed_all, open_all = closed | closed_dirs, opened | open_dirs
+
+    def dangling(tok):
+        if "*" not in tok:
+            return tok in closed or tok.rstrip("/") in closed_dirs
+        if not tok.startswith(ARCHIVE):
+            return False
+        pat = tok.rstrip("/")       # fnmatch 的 * 也跨 /，只会多匹配，「全闭源」更难成立
+        return (any(fnmatch.fnmatchcase(p, pat) for p in closed_all)
+                and not any(fnmatch.fnmatchcase(p, pat) for p in open_all))
+
     hits = []
     for path, lines in _text_files(out):
         for no, line in enumerate(lines, 1):
             found = []
             for tok in _PATHLIKE.findall(line):
                 tok = tok.strip(".").removeprefix("./")
-                if tok != leak_scan.MANIFEST and (tok in closed or tok.rstrip("/") in closed_dirs):
+                if tok != leak_scan.MANIFEST and dangling(tok):
                     found.append(tok)
             found += [t for t in _FILENAME.findall(line) if t in names and not any(t in f for f in found)]
             hits += [(path, no, t) for t in dict.fromkeys(found)]
@@ -156,18 +171,23 @@ def main(argv=None):
         return 1
     print(f"ok    导出：{last}")
 
-    for name, hits in (("悬空引用", dangling_refs(a.repo, a.ref, out)), ("死链", dead_links(out))):
-        print(f"{'warn' if hits else 'ok  '}  {name} {len(hits)} 处")
+    refs = dangling_refs(a.repo, a.ref, out)
+    archive = [h for h in refs if h[2].startswith(ARCHIVE)]
+    for level, name, hits in (("FAIL", "闭源归档引用", archive),
+                              ("warn", "悬空引用", [h for h in refs if h not in archive]),
+                              ("warn", "死链", dead_links(out))):
+        print(f"{level if hits else 'ok  '}  {name} {len(hits)} 处")
         for path, no, target in hits:
             print(f"  {path}:{no}: {target}")
+    failed = 1 if archive else 0
 
     git_init(out)
     print("ok    导出目录已 git init（main，1 个提交）")
     if a.quick:
-        return 0
+        return failed
     try:
         with budget.heavy("open_check", say=lambda m: print(m, file=sys.stderr, flush=True)):
-            return full_checks(out, a.python)
+            return full_checks(out, a.python) or failed
     except budget.BudgetError as e:
         print(f"open_check: {e}", file=sys.stderr)
         return 2

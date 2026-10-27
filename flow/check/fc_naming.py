@@ -213,8 +213,8 @@ for path, line, mod, kind, name, why in bad:
     print(f"{where}: 模块 {mod} 的{kind} {name}：{why}", file=sys.stderr)
 if bad:
     print(f"  共 {len(bad)} 处不合命名约定（rtl-structure-authority 的"
-          "「模块接口与参数必须遵守统一命名约定」，映射表见 "
-          "openspec/changes/archive/*unify-rtl-naming*/design.md 的 D2）。", file=sys.stderr)
+          "「模块接口与参数必须遵守统一命名约定」，改名映射表见 "
+          "docs/data-credibility.md 的 D-26）。", file=sys.stderr)
 print(f"{n_mod} 个模块、{n_param} 个参数、{n_port} 个端口"
       + (f"；按 IP 级约定 {n_ip} 个模块" if n_ip else ""))
 sys.exit(1 if bad else 0)

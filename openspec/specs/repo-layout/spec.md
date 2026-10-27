@@ -686,7 +686,7 @@ LRS 与 LLD 正文里「握手前可以改 / 撤回」一类句子 MUST 在同�
 #### Scenario: 读一条切换前的历史
 
 - **WHEN** 归档 change 或旧记录引用一个后来搬过的路径（2026-10 闭源评审记录收进设计根；闭源设计根曾短暂在 `ip_designs/`、`ip_cbb/` 下，后搬回）
-- **THEN** 按 `openspec/changes/archive/` 下 kaiwu-closed-cutover 的切换脚本与 kaiwu-layout-in-place 的搬回脚本里的映射表读，历史文本本身不改
+- **THEN** 按归档里 2026-10-15 闭源切换与搬回的两份 change 的脚本里的映射表读，历史文本本身不改
 - **AND** 映射表 MUST NOT 写进开源内容（它列着闭源路径）
 
 #### Scenario: 新增一个闭源设计

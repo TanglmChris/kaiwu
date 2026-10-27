@@ -285,7 +285,7 @@ def test_a_root_with_only_an_lrs_is_spec_only(tmp_path):
     assert _spec_only(root) is True
 
 
-# --- 设计树只有 designs/ 与 cbb/（kaiwu-layout-in-place 3.1，内部#305）--------------------------
+# --- 设计树只有 designs/ 与 cbb/（2026-10-15 搬回 3.1，内部#305）--------------------------
 #
 # 开源与闭源的设计根同放这两棵树，开源与否只看开源白名单（用户 2026-10-15）。2026-10 曾短暂
 # 另设 ip_designs/、ip_cbb/，已收回：那两个目录不是设计树，里面声明的顶层解析不到。

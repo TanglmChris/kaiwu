@@ -119,17 +119,17 @@ MUST NOT 以 issue 作为其唯一记录处。
 后续变动而被修改，包括其中已失效的文件路径引用。归档记录的是**当时的事实**，
 回写会让归档的叙述与产生它的那次 commit 不符，从而毁掉它作为历史证据的价值。
 
-当归档正文中的引用目标被移动或删除时，MUST 在 `openspec/changes/archive/README.md`
+当归档正文中的引用目标被移动或删除时，MUST 在归档目录（`openspec/changes/archive/`）下的 README
 中提供从旧目标到新位置的对照，使该引用保持**一跳可达**。
 
 #### Scenario: 归档引用的文件被删除
 
 - **WHEN** 一个被多份归档变更引用的仓库文件被删除或拆解
 - **THEN** 归档正文中的引用 MUST 逐字保持原样
-- **AND** `openspec/changes/archive/README.md` MUST 说明该文件的去向，并指向承载其内容的新位置
+- **AND** 归档目录下的 README MUST 说明该文件的去向，并指向承载其内容的新位置
 
 #### Scenario: 读者顺着归档里的失效链接查找
 
 - **WHEN** 读者在归档正文中读到一个指向已不存在文件的引用
-- **THEN** 该文件的去向 MUST 能在 `openspec/changes/archive/README.md` 中找到
+- **THEN** 该文件的去向 MUST 能在归档目录下的 README 中找到
 - **AND** MUST NOT 需要读者翻 git 历史才能定位其内容

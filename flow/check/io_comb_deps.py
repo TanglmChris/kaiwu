@@ -431,8 +431,16 @@ def _declared_values(cfg):
 
 # --- 按设计跑（design D2、D6） -------------------------------------------------------
 
+def interface_doc(root, top):
+    """写「接口组合依赖」表的接口文档：`lrs.<顶层>.md`；没有 LRS 的通用构件用精简规格 `spec.<顶层>.md`（内部#415）。
+    两者都有时以 LRS 为准；都没有时返回 LRS 的路径，读的时候报找不到文件。"""
+    lrs = Path(root) / f"lrs.{top}.md"
+    spec = Path(root) / f"spec.{top}.md"
+    return spec if not lrs.is_file() and spec.is_file() else lrs
+
+
 def design_setup(design):
-    """读入集合、include、LRS 路径、不计的输入模式、配置清单。"""
+    """读入集合、include、接口文档路径（setup["lrs"]，见 interface_doc）、不计的输入模式、配置清单。"""
     from flow import paths
     from flow.synth.synth import source_files
     cfg = paths.load_design_config(design)
@@ -443,7 +451,7 @@ def design_setup(design):
     exclude.append((cfg.get("sim") or {}).get("reset_signal") or "rst_n")
     for item in paths.static_ports(design):
         exclude.extend(item["ports"])
-    lrs = paths.resolve_design_root(design) / f"lrs.{design}.md"
+    lrs = interface_doc(paths.resolve_design_root(design), design)
     return dict(sources=sources, incs=paths.include_dirs(design), rtl_params=rtl_params,
                 configs=configs, exclude=exclude, lrs=lrs, loops_decl=cfg.get("iodeps_loops") or {},
                 declared=_declared_values(cfg))
@@ -472,11 +480,12 @@ def run_config(design, setup, name, params, outdir, deps_only=False, keep_netlis
                                         setup.get("loops_allowed", []))
             loop_errors = []
         except io_comb_loops.GroupError as e:
-            loops, loop_errors = dict(peer_loops=[], channel_loops=[], passed=False), [str(e)]
+            loops, loop_errors = dict(peer_loops=[], channel_loops=[], loop_notes=[], passed=False), [str(e)]
         out.update(violations=[dict(output=o, input=i, path=one_path(netlist, design, o, i))
                                for o, i in res.violations],
                    absent=res.absent, errors=res.errors,
                    peer_loops=loops["peer_loops"], channel_loops=loops["channel_loops"], loop_errors=loop_errors,
+                   loop_notes=loops.get("loop_notes", []),
                    passed=not res.violations and not res.errors and loops["passed"])
     (work / "result.json").write_text(json.dumps(out, ensure_ascii=False, indent=1))
     return out
@@ -500,6 +509,7 @@ def _report(r, deps_only):
     lines.append(f"   外部耦合下的组合环（io-comb-loops）：按对方整体 {len(r['peer_loops'])} 个"
                  f"（未允许 {len(bad)}），按通道 {len(r['channel_loops'])} 个（参考）")
     lines += [f"   环检查出错：{e}" for e in r["loop_errors"]]
+    lines += [f"   环检查提示：{n}" for n in r.get("loop_notes", [])]
     for l in r["peer_loops"]:
         tag = "未允许" if l["allowed"] is None else f"LRS 第 {l['allowed']} 行允许"
         lines.append(f"   组合环（{tag}）：{'、'.join(l['ports'])}")
@@ -525,8 +535,11 @@ def main(argv=None):
         if not a.deps_only:
             from flow.check import io_comb_loops
             lrs_text = setup["lrs"].read_text()
-            setup["rows"] = parse_table(lrs_text)
-            setup["loops_allowed"] = io_comb_loops.parse_allowed(lrs_text)
+            try:
+                setup["rows"] = parse_table(lrs_text)
+                setup["loops_allowed"] = io_comb_loops.parse_allowed(lrs_text)
+            except (TableError, io_comb_loops.GroupError) as e:
+                raise TableError(f"{setup['lrs'].name}：{e}") from e
     except (ConfigError, TableError, FileNotFoundError, RuntimeError, ValueError) as e:
         print(f"io_comb_deps：{e}", file=sys.stderr)
         return 2

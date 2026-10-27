@@ -28,7 +28,7 @@ def test_doc_takes_drawio_and_svg_with_source(tmp_path, files, ok, needle):
         assert needle in out, out
 
 
-# --- 设计根的评审记录 review/（kaiwu-closed-cutover 1.1，内部#305）--------------------------
+# --- 设计根的评审记录 review/（2026-10-15 闭源切换 1.1，内部#305）--------------------------
 
 REVIEW_DOCS = ("a.md", "b.diff", "c.patch", "d.html", "e.svg", "e.drawio")
 

@@ -12,7 +12,8 @@ io_comb_deps 实测出「输出端口 ← 组合依赖的输入端口」之后�
 每一位都连，所以端口级图上成环与逐位网表上成环等价，不会因按端口归并而多报。
 
 端口归组（D1）：按名字前缀 `<侧>_<通道>_` 自动分（`s_cmd_vld` → 对方 `s`、通道 `s_cmd`），sideband 跟着
-前缀走。分不进组的端口要在 `params.yaml` 的 `tops:<顶层>:iodeps_loops:` 里显式声明，没声明就报错：
+前缀走。第一段是方向 `i` / `o` 的（通用构件的 `i_src_vld`、`o_dst_rdy`）按 `<方向>_<对方>_` 读，对方与通道都取
+第二段（`src`、`dst`），不把 `i` / `o` 当成对方（内部#449）。按对方整体一条外部边都没连上时，结果的 loop_notes 里说出来。分不进组的端口要在 `params.yaml` 的 `tops:<顶层>:iodeps_loops:` 里显式声明，没声明就报错：
 
     iodeps_loops:
       peers:                       # 自成一个对方（按通道那档也当一个通道）
@@ -67,6 +68,9 @@ def group_ports(ports, decl, exclude=()):
         if _match(name, no_peer):
             continue
         m = PREFIX.match(name)
+        if m and m.group(1) in "io":      # 通用构件的方向前缀：i_src_vld → 对方 src（内部#449）
+            out[name] = (m.group(2), m.group(2))
+            continue
         if m:
             out[name] = (m.group(1), f"{m.group(1)}_{m.group(2)}")
             continue
@@ -120,15 +124,10 @@ def _rdy(name):
     return name.endswith("_rdy")
 
 
-def find_loops(deps, ports, groups, by="peer", rdy_dependent=()):
-    """外部模型下的组合环。返回 [{ports: [...], internal: [(输入, 输出)...]}]，按端口名排序。
-
-    deps 是 {输出: {输入}}；by 取 'peer'（按对方整体）或 'channel'（按通道）。"""
+def external_edges(ports, groups, by="peer", rdy_dependent=()):
+    """外部模型的边 [(本方输出, 本方输入)]：同一对方（或通道）里，AXI 基线与显式声明的那些。"""
     key = 0 if by == "peer" else 1
-    succ = {}
-    for out, ins in deps.items():
-        for i in ins:
-            succ.setdefault(i, set()).add(out)
+    edges = []
     for o, go in groups.items():
         if ports.get(o) != "output":
             continue
@@ -136,7 +135,20 @@ def find_loops(deps, ports, groups, by="peer", rdy_dependent=()):
             if ports.get(i) != "input" or gi[key] != go[key]:
                 continue
             if (_rdy(i) and not _rdy(o)) or (_rdy(o) and _match(i, rdy_dependent)):
-                succ.setdefault(o, set()).add(i)
+                edges.append((o, i))
+    return edges
+
+
+def find_loops(deps, ports, groups, by="peer", rdy_dependent=()):
+    """外部模型下的组合环。返回 [{ports: [...], internal: [(输入, 输出)...]}]，按端口名排序。
+
+    deps 是 {输出: {输入}}；by 取 'peer'（按对方整体）或 'channel'（按通道）。"""
+    succ = {}
+    for out, ins in deps.items():
+        for i in ins:
+            succ.setdefault(i, set()).add(out)
+    for o, i in external_edges(ports, groups, by, rdy_dependent):
+        succ.setdefault(o, set()).add(i)
     nodes = sorted(set(ports) | set(succ))
     loops = []
     for comp in _scc(nodes, {k: sorted(v) for k, v in succ.items()}):
@@ -188,5 +200,10 @@ def check(deps, ports, decl, exclude, allowed_rows):
     for loop in peer:
         loop["allowed"] = allowed_by(loop, allowed_rows)
     channel = find_loops(deps, ports, groups, "channel", rdy_dep)
-    return dict(peer_loops=peer, channel_loops=channel,
+    notes = []
+    if not external_edges(ports, groups, "peer", rdy_dep):
+        # 只提示不判失败：没有握手的纯组合构件本来就连不上边（内部#449）
+        notes.append("外部模型没有连上任何边，环检查等于没做：核对端口分组（报告的对方 / 通道），"
+                     "需要时用 iodeps_loops.peers 声明")
+    return dict(peer_loops=peer, channel_loops=channel, loop_notes=notes,
                 passed=all(loop["allowed"] is not None for loop in peer))

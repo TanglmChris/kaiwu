@@ -129,3 +129,37 @@ def test_links_inside_inline_code_are_not_links(tmp_path):
     r = _check(repo, tmp_path / "out")
     assert "flow/e.md:1: gone.md" in r.stdout, r.stdout + r.stderr
     assert "missing.md" not in r.stdout and "doc/top.svg" not in r.stdout, r.stdout
+
+
+# ---- 闭源归档引用升 FAIL（open-export-archive-ref-block，内部#444）----
+# 夹具照真实仓库：归档目录里有开源的、也有闭源的归档 change，白名单按目录 include 开源的那份。
+
+ARCHIVE = {
+    "openspec/changes/archive/2026-01-01-secret-change/evidence/pair.txt": "diff\n",
+    "openspec/changes/archive/2026-01-02-open-change/design.md": "## D1\n",
+    "flow/export/manifest.yaml": MANIFEST.replace(
+        "  - cbb/**\n", "  - cbb/**\n  - openspec/changes/archive/2026-01-02-open-change/**\n"),
+}
+
+
+def test_reference_to_closed_archive_fails(tmp_path):
+    repo = _repo(tmp_path, {**ARCHIVE,
+                            "flow/f.md": "证据在 openspec/changes/archive/2026-01-01-secret-change/evidence/pair.txt\n"})
+    out = tmp_path / "out"
+    r = _check(repo, out)
+    assert "FAIL  闭源归档引用 1 处" in r.stdout, r.stdout + r.stderr
+    assert "flow/f.md:1:" in r.stdout
+    assert r.returncode == 1
+    assert (out / ".git").exists()                     # FAIL 不中断后面的步骤
+
+
+def test_glob_references_are_judged_by_expansion(tmp_path):
+    repo = _repo(tmp_path, {**ARCHIVE,
+                            "flow/g.md": ("证据在 `openspec/changes/archive/*-secret-change/evidence/`\n"
+                                          "设计见 `openspec/changes/archive/*-open-change/design.md`\n"
+                                          "白名单写 `cbb/**`\n")})
+    r = _check(repo, tmp_path / "out")
+    assert "flow/g.md:1:" in r.stdout, r.stdout + r.stderr
+    assert "FAIL  闭源归档引用 1 处" in r.stdout
+    assert "flow/g.md:2:" not in r.stdout and "flow/g.md:3:" not in r.stdout, r.stdout
+    assert r.returncode == 1

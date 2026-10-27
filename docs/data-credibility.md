@@ -751,10 +751,10 @@ CLA 出现在其中并不意外 —— 它的深度本来就靠 ABC 事后重构
 
 ### 顺带更正一条归档里的说法
 
-归档 `openspec/changes/archive/2026-09-09-add-fmax-and-scoring/design.md` 的 `D1` 写着
+归档变更 `add-fmax-and-scoring`（未开源）的设计决定 `D1` 写着
 「换成 DC 后 D1 立即失效（时序驱动）」。实际 **D1 在开源流里就已经失效**，不必等 DC。
 归档正文按 `knowledge-placement` 的「已归档的变更不得回写」保持原样，
-更正由 `openspec/changes/archive/README.md` 的指路表接手。
+更正由归档目录的指路表接手（未开源）。
 
 ---
 
@@ -988,7 +988,7 @@ Path Group: asynchronous
 > `shutil.which` 对 yosys / OpenSTA / iverilog 是对的 —— 它们就是被 PATH 解析后
 > **执行**的那个二进制；对 cocotb 不对 —— 它是被 **import** 的库，不是被执行的命令。
 >
-> 归档 `openspec/changes/archive/2026-09-14-fingerprint-cocotb-and-order-independent-liberty`
+> 归档变更 `fingerprint-cocotb-and-order-independent-liberty`（未开源）
 > 的 D4「cocotb 版本取 `cocotb-config --version` 的首行」由本节接手更正；
 > 同一份归档里任务 6.1 的 M3 写的「`dynamic_power_w` 非空即等于 VCD 反标」
 > 也是错的（`read_vcd` 执行了 ≠ 引脚标上了），由 D-1 与 D-9 接手。
@@ -1223,7 +1223,7 @@ commit 下结果可能不同，跳过就漏掉重测。所以它默认关闭。
 
 归档的 OpenSpec 变更正文里仍有 90 处引用 `FOLLOWUP.md`（含 **21 处**把它写作
 `Owner:` / `Durable owner:`，即把某个未决问题的所有权托管给了它）。那些正文是当时的
-事实，**不回写** —— 去向与所有权转移表见 `openspec/changes/archive/README.md`。
+事实，**不回写** —— 去向与所有权转移表在归档目录的指路表里（未开源）。
 
 ---
 
@@ -1863,7 +1863,7 @@ iverilog 那一项同样没挪动任何东西：`sim.total_toggles` 75 组逐位
 3 条块宽曲线，参数组合集合与 `07ed6ae2` 完全一致），全部产自提交 **`009bf94`**。
 它与 D-22 的 `07ed6ae2` **逐字段零差异**：75 组全部配上对、两侧都没有配不上的，
 每一个测量字段逐条相等（`scripts/pair_generations.py --base 07ed6ae2 --head 2738ec6f`
-退出 0，输出存在 `openspec/changes/archive/2026-09-27-make-verilator-sim-usable/evidence/pair.txt`）。
+退出 0，输出存在归档变更 `make-verilator-sim-usable` 的证据里，未开源）。
 
 这一条是**读法**，不是降级：两代可以当同一批数读。D-22 里「与之前各代不可横向比」
 那条结论原样继承 —— 本代只是把 `07ed6ae2` 重测了一遍。
@@ -1895,7 +1895,7 @@ iverilog 那一项同样没挪动任何东西：`sim.total_toggles` 75 组逐位
 **结论先说**：`flow = sha256:211a545d…` 是这条线上的一代，`ADDER32` 共 **75** 条（72 `sweep` + 3 条块宽曲线），
 全部产自提交 **`a34de7f`**。与 D-23 的 `2738ec6f` **逐字段零差异**：75 组全配上、两侧无配不上的，
 既有字段逐条相等（`pair_generations.py --base 2738ec6f --head 211a545d` 退出 0，输出在
-`openspec/changes/archive/2026-09-27-add-ss-ff-corner-sta/evidence/pair.txt`）。新增的
+归档变更 `add-ss-ff-corner-sta` 的证据里，未开源）。新增的
 `sta.corners.*` 只在本代一侧出现，被该脚本单列为「schema 只增」，不算测量变化。
 
 ### 新增了什么、怎么读
@@ -1938,7 +1938,7 @@ STA（同一份 VCD 反标、同一套断言），写进 `sta.corners.SS` / `sta
 ## 【读法】D-25. `38530bd8` 这一代：流程能读 cbb 依赖，**没有重跑，暂无记录**
 
 **结论先说**：
-- 2026-10-01 起，流程指纹是 `flow = sha256:38530bd8…`。相对 D-24 的 `211a545d` 只变了 `metrics_code_sha256`，其余七项事实逐字相同（`openspec/changes/archive/2026-10-01-add-design-cbb-deps/evidence/2.1-fingerprint.txt`）。
+- 2026-10-01 起，流程指纹是 `flow = sha256:38530bd8…`。相对 D-24 的 `211a545d` 只变了 `metrics_code_sha256`，其余七项事实逐字相同（归档变更 `add-design-cbb-deps` 的证据，未开源）。
 - **这一代还没有记录**：用户决定跑过的顶层不再反复跑。**有记录的最新一代仍是 `211a545d`**，`gen_report.py` / `score.py` 默认呈现的也仍是它，各份 REPORT 不动。
 
 ### 变了什么
@@ -2003,7 +2003,7 @@ D12）。名字只留在 `params.yaml` 的 `labels` 里给人读，记录里存�
 | 分界之前的记录 | `OKLOBDZIJA` | `CLA` | `CLA_SHARED` | `NIBBLE` | `HALVING` | `PRIENC` | `TOOL` |
 
 - 数字化不改电路：两个设计每种结构改前改后各综合一次，`cell_count` / `area_um2` 逐项相同
-  （`openspec/changes/archive/2026-10-03-unify-rtl-naming/evidence/2.5-m3.txt`、`2.6-m3.txt`）。
+  （归档变更 `unify-rtl-naming` 的证据 `2.5-m3.txt`、`2.6-m3.txt`，未开源）。
 - **取值映射和键映射一样，只能显式给**，工具不按 `labels` 反查（`experiment-record` 的「取值映射同样
   只能显式给出」）：`--value-map <键>:<旧值>=<新值>`，可重复，只作用于 base 一侧，**在 `--param-map`
   之后**执行，所以键写改名之后的名字。例如 ADDER32 跨两次分界：
@@ -2027,9 +2027,9 @@ D12）。名字只留在 `params.yaml` 的 `labels` 里给人读，记录里存�
 ### 分界提交与零差异证据（2026-10-02 回填，`flow-batch-2026-10` 的 3.1）
 
 - 分界：2026-10-03 随 `d31ca34` 合入 main（流程分支 `5a9bfdf`）。在特性分支上，键改名随 `c7aeaa8`（合入 `unify-rtl-naming`）进来，取值数字化是 `042b383`（ADDER32，unify-rtl-naming 2.5）与 `885529d`（LZD，2.6）。两次分界之后的记录全部在 `9a40494a` 这一代，与 `211a545d` 不同代，**按代就能切开，不需要 `--split-at`**。
-- 证明怎么做的：有记录的各顶层的设计根在 2026-10-02 已删（D-29），重跑不在 main 上，而是在删除之前的 `e6c84bd` 的独立工作树里进行，那里的流程代码与删除之后逐字节同代（三段摘要相同）。重跑覆盖 `211a545d` 的全部组合，全部 `sim.passed`。新记录存在 `openspec/changes/archive/2026-10-03-flow-batch-2026-10/evidence/3.1-records.jsonl`，**不在** `results/experiments.jsonl` 里。
-- 逐字段零差异：`openspec/changes/archive/2026-10-03-flow-batch-2026-10/evidence/pair.txt`。`ADDER32` 75 组全部配上、退出 0；只忽略 `synth.sources_sha256`（源文件字节确实变了）。
-- `LZD` 的差异清单：`openspec/changes/archive/2026-10-03-flow-batch-2026-10/evidence/pair_lzd.txt`。28 组全部配上，每项差异都追到了 `o_zero = ~nz` 这一个反相器：
+- 证明怎么做的：有记录的各顶层的设计根在 2026-10-02 已删（D-29），重跑不在 main 上，而是在删除之前的 `e6c84bd` 的独立工作树里进行，那里的流程代码与删除之后逐字节同代（三段摘要相同）。重跑覆盖 `211a545d` 的全部组合，全部 `sim.passed`。新记录存在归档变更 `flow-batch-2026-10` 的证据 `3.1-records.jsonl` 里（未开源），**不在** `results/experiments.jsonl` 里。
+- 逐字段零差异：归档变更 `flow-batch-2026-10` 的证据 `pair.txt`（未开源）。`ADDER32` 75 组全部配上、退出 0；只忽略 `synth.sources_sha256`（源文件字节确实变了）。
+- `LZD` 的差异清单：同一归档的证据 `pair_lzd.txt`（未开源）。28 组全部配上，每项差异都追到了 `o_zero = ~nz` 这一个反相器：
   - 28 组都是 +1 个单元，其中 27 组 +0.04374 µm²；
   - `sim.total_toggles` 的增量逐组等于新增 `nz` 线的翻转（VCD 多一个 id）；
   - 时序变化来自三个来源：`o_zero` 路径上多了一级；`nz` 的负载与 slew 变了（PRIENC 16 / 32 在 `476a974` 复现了旧网表，子结构逐单元相同）；fmax 搜索因此换了延时目标（7 组，`(32, CLA)` 的 +0.51 µm² 属于这一类）。
@@ -2065,9 +2065,9 @@ D12）。名字只留在 `params.yaml` 的 `labels` 里给人读，记录里存�
 ## 【读法】D-28. `9a40494a` 这一代：攒批换代（内部#74 / 内部#76 / 内部#64 / 内部#67 / 内部#65），**声称不改任何既有测量值，合入 main 后重跑配对**
 
 **结论先说**：
-- `flow-batch-2026-10` 把冻结基线（内部#62）之后攒下的五件流程改动合成一次换代：`flow = sha256:9a40494a…`。相对 `211a545d`（与 D-25 的 `38530bd8`）只变了 `metrics_code_sha256` 与 `synth_recipe_sha256`，其余事实逐字相同（`openspec/changes/archive/2026-10-03-flow-batch-2026-10/evidence/2.1-fingerprint.txt`）。
+- `flow-batch-2026-10` 把冻结基线（内部#62）之后攒下的五件流程改动合成一次换代：`flow = sha256:9a40494a…`。相对 `211a545d`（与 D-25 的 `38530bd8`）只变了 `metrics_code_sha256` 与 `synth_recipe_sha256`，其余事实逐字相同（归档变更 `flow-batch-2026-10` 的证据，未开源）。
 - 这个指纹是 2026-10-01 在特性分支上算的；合入 main 之前若再有 `METRIC_MODULES` 的改动它还会变，**以重跑那一代的实际指纹为准**（`flow-batch-2026-10` 的 3.1 回填）。
-- **这一代在 `results/experiments.jsonl` 里没有记录**；那里有记录的最新一代仍是 `211a545d`，`gen_report.py` / `score.py` 默认呈现的也仍是它。2026-10-02 的零差异重跑记录在 `openspec/changes/archive/2026-10-03-flow-batch-2026-10/evidence/3.1-records.jsonl`（见 D-26 末节与 D-29）。
+- **这一代在 `results/experiments.jsonl` 里没有记录**；那里有记录的最新一代仍是 `211a545d`，`gen_report.py` / `score.py` 默认呈现的也仍是它。2026-10-02 的零差异重跑记录在归档变更 `flow-batch-2026-10` 的证据 `3.1-records.jsonl` 里（未开源；见 D-26 末节与 D-29）。
 - 本变更声称不改任何既有测量值（新增字段除外）。**2026-10-02 已证**：有记录的各顶层在这一代按 `211a545d` 的全部组合重跑，与 `211a545d` 逐字段配对，除 `LZD` 外零差异，`LZD` 的差异全部追到 D-26 的那个反相器（`experiment-trust`「声称不改变测量口径的换代必须用逐字段配对证明」）。这次重跑同时是 `unify-rtl-naming` 的零差异证明；证据与做法见 D-26 末节。
 
 ### 五件改动各自预期不改什么
@@ -2107,11 +2107,11 @@ D12）。名字只留在 `params.yaml` 的 `labels` 里给人读，记录里存�
 
 ### 对 D-28 的影响
 
-D-28 原定「合入 main 后在 main 上重跑各顶层再配对」，删除之后做不了。2026-10-02 用户定：改在 `e6c84bd`（删除前最后一个含这些根的提交，流程与本分支同代）的独立工作树里重跑。结果：除 `LZD` 外零差异，`LZD` 的差异全部有机理，`9a40494a` 这一代的零差异**已证**。证据在 `openspec/changes/archive/2026-10-03-flow-batch-2026-10/evidence/`，新记录存在那里的 `3.1-records.jsonl`，不进 `results/experiments.jsonl`。
+D-28 原定「合入 main 后在 main 上重跑各顶层再配对」，删除之后做不了。2026-10-02 用户定：改在 `e6c84bd`（删除前最后一个含这些根的提交，流程与本分支同代）的独立工作树里重跑。结果：除 `LZD` 外零差异，`LZD` 的差异全部有机理，`9a40494a` 这一代的零差异**已证**。证据在归档变更 `flow-batch-2026-10` 里（未开源），新记录存在那里的 `3.1-records.jsonl`，不进 `results/experiments.jsonl`。
 
 **2026-10-14 补记：`ADDER32` 恢复**（kaiwu-layout-decouple 4.1，内部#305）。`designs/adder32` 作为开源演示设计恢复，
 顶层名仍是 `ADDER32`。RTL 按现行书写规范改写（命名、注释、块名），以删除前的 `57dc3983^` 为金标准，
-288 个可声明组合逐个形式等价（`openspec/changes/archive/2026-10-14-kaiwu-layout-decouple/evidence/4.1-M4.txt`）。
+288 个可声明组合逐个形式等价（归档变更 `kaiwu-layout-decouple` 的证据，未开源）。
 读法：
 - 历史 `ADDER32` / `adder32` 记录照旧按各自的 `git_commit` 取源码；
 - 恢复后的新记录 `synth.sources_sha256` 与历史记录不同（RTL 文本变了），按「改了 RTL」处理，不是换代；
@@ -2149,7 +2149,7 @@ D-28 原定「合入 main 后在 main 上重跑各顶层再配对」，删除之
   - `sta.fmax_method = "analytic"`，不是 `"search:abc-D"`；
   - `synth.delay_target_ps = null`。
 - **原因**：关键路径只有百皮秒量级的浅组合，ABC 每一档都改不动网表。之前它们被守卫拦下，一条记录都写不出，例如 CBB_ONEHOT2BIN 的 `DAT_W=2/5/33`，d0 只有百皮秒量级。
-- **换代**：`search.py`、`run_experiment.py` 都在 `METRIC_MODULES` 里。这一代声称不改任何已有组合的测量值，用 `pair_generations.py --base 0ba1e007 --head <新代>` 零差异证明，证据在 `openspec/changes/archive/*-search-noop-pass/evidence/`。
+- **换代**：`search.py`、`run_experiment.py` 都在 `METRIC_MODULES` 里。这一代声称不改任何已有组合的测量值，用 `pair_generations.py --base 0ba1e007 --head <新代>` 零差异证明，证据在归档变更 `search-noop-pass` 里（未开源）。
 
 ### 怎么读
 
@@ -2161,6 +2161,8 @@ D-28 原定「合入 main 后在 main 上重跑各顶层再配对」，删除之
 
 - `false` 的记录与 `true` 的记录比 fmax 时要知道：前者没有经过加压综合。对这些浅组合，加压本来就改不动网表，所以数值本身是对的，只是取得方式不同。
 - **要警惕的信号**：一轮扫参里 `search_effective = false` 的条数突然变多，例如换了工具或库之后连深组合也是 `false`，说明档位搜索整组失效了。以前这种情况当场报错，现在 sweep 结尾会单报「本轮 N 条记录的档位搜索整组无效」，要看。
+- **但深组合的 `false` 不一定是失效**（内部#434，用户 2026-10-27 定配方不改）：正式配方的 ABC 脚本只有 `dc2`、`&dch` 两步局部改写，不按深度做全局重构（有意保留 RTL 写法之间的差别，P-3）。写法本身就深的结构，`-D` 只能在已有结构里挑映射、调尺寸，改不了级数，整组 `false` 是真实结果。例子：`CBB_FFO DAT_W=64` 的 PREFIX / ARITH / TOOL（787 / 740 / 676 ps）都是 `false`，同一函数的 BLOCK 写法 252 ps 是 `true`。
+  - **判别方法**：拿该组合不加压那次综合的 `synth.ys`，只把 ABC 换成 `-script`，在 `&dch -f` 之前加 `&st; &if -g; &syn2; &if -g`。延时大幅下降（FFO PREFIX 787 → 229 ps），说明是写法深、配方不重构，不是流程问题；延时也不动，才按上一条去查工具或库。这个对照只用来判别，不进记录：加了平衡后 FFO 四种写法都落到 229–284 ps，微架构差别被抹平。
 - `CBB_ONEHOT2BIN DAT_W=2` 在这一代仍写不出：网表零单元，被 gate-level-activity 的「门级 VCD 必须标到内部」守卫误拦。下一代已修复（`zero-cell-annotation`，内部#86），见 D-32。
 - 同一 change 起，`sweep` 遇到单个组合测量失败不再整轮中止：其余组合照跑，结尾列出失败的组合与原因，退出码非 0。
 
@@ -2171,7 +2173,7 @@ D-28 原定「合入 main 后在 main 上重跑各顶层再配对」，删除之
 - **为什么**：零单元网表没有内部节点，只标到端口就是完整反标，记录如实写 `sta.activity_annotation.scope = ports`。例如 `CBB_ONEHOT2BIN DAT_W=2`，输出就是 `assign o_bin = i_oh[1];`。
 - **怎么读**：
   - 读 `scope` 时同时看 `synth.cell_count`：`cell_count == 0` 的 `ports` 是完整的；`cell_count > 0` 的 `ports` 只会出现在 `gate-level-activity` 之前的记录里（D-27）。
-- **换代**：`run_experiment.py` 在 `METRIC_MODULES` 里。这一代声称不改任何已有组合的测量值，与 `aac0aa4d` 零差异配对，证据在 `openspec/changes/archive/*-zero-cell-annotation/evidence/`。
+- **换代**：`run_experiment.py` 在 `METRIC_MODULES` 里。这一代声称不改任何已有组合的测量值，与 `aac0aa4d` 零差异配对，证据在归档变更 `zero-cell-annotation` 里（未开源）。
 
 ## 【读法】D-33. `fingerprint-per-design`：流程指纹按设计算，**不同设计的记录不再同代**，跨代配对要加 `--design`
 
@@ -2182,7 +2184,7 @@ D-28 原定「合入 main 后在 main 上重跑各顶层再配对」，删除之
   - 指纹现在按设计算。配方不同的设计永远不同代；配方相同的设计同指纹（例如三个纯组合 CBB：`CBB_BIN2ONEHOT`、`CBB_LZD`、`CBB_ONEHOT2BIN` 都是 `e2341fce`）。
   - 跨代配对按设计做：`scripts/pair_generations.py --design <顶层> --base <旧代> --head <新代>`。不带 `--design` 时，`previous` / `latest` 取的是全仓文件序里的前后两代，可能是两个不同的设计。
   - 以后只改某个设计的配置（或只为它新增写法），只有那个设计换代。改解析工具输出的代码（仍在 `METRIC_MODULES` 里的那些）照旧全仓换代。
-- **换代**：本次声称不改任何已有组合的测量值。各 CBB 在 `967d2f0` 上重跑，与 `05a3f7b5` 逐设计配对：共有的组合全部零值差异。只在旧代一侧的是 `CBB_LZD` 的 `MSB_EN = 1` 15 组，原因是旧代在 `2f7b1c9` 上跑，那时 `MSB_EN` 还没标 `sweep: false`（`2f8ad36`，用户 2026-10-03）。证据在 `openspec/changes/archive/*-fingerprint-per-design/evidence/`。
+- **换代**：本次声称不改任何已有组合的测量值。各 CBB 在 `967d2f0` 上重跑，与 `05a3f7b5` 逐设计配对：共有的组合全部零值差异。只在旧代一侧的是 `CBB_LZD` 的 `MSB_EN = 1` 15 组，原因是旧代在 `2f7b1c9` 上跑，那时 `MSB_EN` 还没标 `sweep: false`（`2f8ad36`，用户 2026-10-03）。证据在归档变更 `fingerprint-per-design` 里（未开源）。
 
 ## 【读法】D-34. 等价的 RTL 改写让综合结果移动约 ±10%：结构之间差距在这个量级以内的排名不能当结论
 
@@ -2208,7 +2210,7 @@ D-28 原定「合入 main 后在 main 上重跑各顶层再配对」，删除之
 - **换代**：`run_sta.py` 在 `METRIC_MODULES` 里，所以全仓换代。各 CBB 在 `d34c4c0` 上重跑，与上一代逐设计配对，测量值全部零差异。rc=1 的已查清：
   - `CBB_BIN2ONEHOT`：只有 `synth.sources_sha256` 不同，因为 内部#101 的书写约定改了 `ifdef CBB_ASSERT_ON` 里的一行，那段不进综合。
 
-  证据在 `openspec/changes/archive/*-sta-static-ports/evidence/`。
+  证据在归档变更 `sta-static-ports` 里（未开源）。
 
 
 ## 【读法】D-37. `flop-map-small`：不复位的触发器改映射到 `DFFHQNx1`，**换代，与之前的记录不可横比**
@@ -2217,7 +2219,7 @@ D-28 原定「合入 main 后在 main 上重跑各顶层再配对」，删除之
 - **改了什么**：2026-10-05 起（`flop-map-small`，内部#176，c1951d5），综合时 `dfflibmap` 排除 `DFFHQx4_ASAP7_75t_R`。之前 `dfflibmap` 只用输出极性相符的单元，而 ASAP7 里 Q 输出的上升沿触发器只有 x4（0.3645 µm²），所以不复位的触发器全部落在 x4 上；现在改用 `DFFHQNx1`（0.2916 µm²）加反相，反相大多被 ABC 吸收。带异步置位 / 复位的触发器本来就是 `DFFASRHQNx1`，不受影响。
 - **为什么**：用户 2026-10-05 定。触发器很多的设计里，触发器占面积的大头，按旧映射面积系统性偏大，跟商用综合的结果对不上。
 - **怎么读**：
-  - 各 CBB 在 c1951d5 上重跑，逐设计配对全部配上（证据在 `openspec/changes/archive/*-flop-map-small/evidence/`）。
+  - 各 CBB 在 c1951d5 上重跑，逐设计配对全部配上（证据在归档变更 `flop-map-small` 里，未开源）。
   - 纯组合的 BIN2ONEHOT、LZD、ONEHOT2BIN **零差异**，这是这次改动只碰触发器的对照。
   - 带触发器的设计，面积下降：不复位触发器本身从 0.3645 µm² 变成 0.2916 µm²（−20%），设计总面积随触发器占比下降；带异步复位的触发器不受影响。
   - 静态功耗普遍下降。fmax 与动态功耗双向都有变化，幅度有限。
@@ -2239,7 +2241,7 @@ D-28 原定「合入 main 后在 main 上重跑各顶层再配对」，删除之
   - 「扣除存储模型后」的面积是给逻辑比较用的：行为模型的 SRAM 综合出来是触发器，换成工艺 SRAM 后面积会完全不同，这部分不能当逻辑面积读。
   - 零单元网表（例如 CBB_ONEHOT2BIN DAT_W=2）的 `synth.area_um2` 照旧为 null，拆分里顶层是 0.0。
   - CBB 综合后都只有一层，表里只有顶层一行；层次表对保留了子模块的设计才有内容。
-- **换代**：`run_experiment.py` 在 METRIC_MODULES 里，`flow/synth/area.py` 也加了进去，所以全仓换代；`memory_models` 进 `design_recipe`。各 CBB 在 f9adec1 上重跑，逐设计配对全部配上，**既有测量字段零差异**，新字段只出现在新一代一侧（证据在 `openspec/changes/archive/*-area-breakdown/evidence/`）。
+- **换代**：`run_experiment.py` 在 METRIC_MODULES 里，`flow/synth/area.py` 也加了进去，所以全仓换代；`memory_models` 进 `design_recipe`。各 CBB 在 f9adec1 上重跑，逐设计配对全部配上，**既有测量字段零差异**，新字段只出现在新一代一侧（证据在归档变更 `area-breakdown` 里，未开源）。
 
 ## 【读法】D-39. `sta-scenarios`：记录多了按验收场景的时序，**主 fmax 仍是各场景最坏**；既有字段零差异
 
@@ -2250,8 +2252,8 @@ D-28 原定「合入 main 后在 main 上重跑各顶层再配对」，删除之
   - 场景的 fmax 是这份网表在该场景下关键路径的倒数（`fmax_method: analytic`）；主 fmax 的口径是档位搜索（`search:abc-D`）。两者用的是同一份网表，场景延时不会大于主 TT 延时，写记录前断言过。
   - 场景不算功耗：功耗的活动率来自 TB 的门级 VCD，与定值无关，读主字段。
   - `sta.scenarios` 为 `[]` 表示「声明了零个场景」；字段缺席（2026-10-05 之前的记录）表示「未知」。
-- **换代**：`run_sta.py`、`run_experiment.py` 在 METRIC_MODULES 里，所以全仓换代；场景声明进 `design_recipe`。各 CBB 未声明场景，重跑后逐设计配对**既有测量字段零差异**，新字段只在新一代一侧（证据在 `openspec/changes/archive/*-sta-scenarios/evidence/`）。
-- **场景按参数组合适用**（`sta-scenario-when`，内部#198，2026-10-05 同日）：场景可以写 `when`，只对匹配的参数组合量。从这一代起，`sta.scenarios` 列的是**这个组合实际量了的场景**，每项带它的 `when`（没写为 null）；同一设计的不同组合可以量不同的场景，跨组合比较某个场景的 fmax 前先看它在两边都量了。又换了一代（`run_experiment.py` 改了），各 CBB 再次逐设计零差异（证据在 `openspec/changes/archive/*-sta-scenario-when/evidence/`）。
+- **换代**：`run_sta.py`、`run_experiment.py` 在 METRIC_MODULES 里，所以全仓换代；场景声明进 `design_recipe`。各 CBB 未声明场景，重跑后逐设计配对**既有测量字段零差异**，新字段只在新一代一侧（证据在归档变更 `sta-scenarios` 里，未开源）。
+- **场景按参数组合适用**（`sta-scenario-when`，内部#198，2026-10-05 同日）：场景可以写 `when`，只对匹配的参数组合量。从这一代起，`sta.scenarios` 列的是**这个组合实际量了的场景**，每项带它的 `when`（没写为 null）；同一设计的不同组合可以量不同的场景，跨组合比较某个场景的 fmax 前先看它在两边都量了。又换了一代（`run_experiment.py` 改了），各 CBB 再次逐设计零差异（证据在归档变更 `sta-scenario-when` 里，未开源）。
 
 ## 【读法】D-40. 红线 6 取消：保层级**不再强制**；CBB 不受影响，声明过保层级的设计从取消那一代起与之前不可比
 
@@ -2274,7 +2276,7 @@ D-28 原定「合入 main 后在 main 上重跑各顶层再配对」，删除之
   - `reference.equiv` 不是 PROVED 时，参考网表没证过等价：记录只留场景、`case`、结论与日志路径，不报参考的面积与时序，报告写「未证等价（…），不报数」。正式字段照写、照常可读。
   - `reference` 为 `null` 表示没开；字段缺席（2026-10-05 之前的记录）表示「未知」。
   - 声明了 `sweep_points` 的设计，扫参只跑那几个点：同一设计的记录只覆盖这些点，不是叉乘的全部组合。
-- **换代**：`run_experiment.py`、`run_sta.py`、`synth.py` 改动，`reference.py` 进 METRIC_MODULES，所以全仓换代。各 CBB 在 f9e8230 上重跑，逐设计配对**既有测量字段零差异**，`reference` 全为 `null`（证据在 `openspec/changes/archive/*-reference-ppa/evidence/1.5-*.txt`）。同一代里 `depth` 的预算改按组合单元数比（内部#207），不影响记录字段，`critical_path_stages` 的口径不变。
+- **换代**：`run_experiment.py`、`run_sta.py`、`synth.py` 改动，`reference.py` 进 METRIC_MODULES，所以全仓换代。各 CBB 在 f9e8230 上重跑，逐设计配对**既有测量字段零差异**，`reference` 全为 `null`（证据在归档变更 `reference-ppa` 的 `1.5-*.txt` 里，未开源）。同一代里 `depth` 的预算改按组合单元数比（内部#207），不影响记录字段，`critical_path_stages` 的口径不变。
 
 ## 【读法】D-42. `equiv-optional`：设计可声明不做网表等价，参考口径照报数、标「未经等价验证」；**既有字段零差异**
 

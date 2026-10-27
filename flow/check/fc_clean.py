@@ -19,7 +19,7 @@ DESIGN_DOC_STEMS = ("lrs", "lld", "verify", "REPORT", "param", "ppa", "timing") 
 CBB_DOC_STEMS = ("spec", "verify", "REPORT")
 ALL_DOC_STEMS = ("spec", "design", "lrs", "lld", "verify", "REPORT")
 ALLOWED_DIRS = {"rtl", "tb", "doc", "review"}
-# review/：评审记录，一次评审一个子目录，只收文档（kaiwu-closed-cutover D2，内部#305）；流程工具不往里写。
+# review/：评审记录，一次评审一个子目录，只收文档（2026-10-15 闭源切换 D2，内部#305）；流程工具不往里写。
 REVIEW_SUFFIX = {".md", ".diff", ".patch", ".html", ".svg", ".drawio"}
 ALLOWED_SUFFIX = {".v", ".sv", ".py", ".md", ".yaml", ".html", ".drawio", ".svg"}   # .drawio / .svg：draw.io 图（内部#119）
 

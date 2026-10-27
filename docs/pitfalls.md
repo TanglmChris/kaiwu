@@ -274,9 +274,9 @@ diff <(grep -v '(\* src = ' 改前网表.v) <(grep -v '(\* src = ' 改后网表.
 **先问「这次改的代码在不在被综合的那几组里」，再看三项齐不齐同。**
 
 来源：内部#34；
-实测过程见
-`openspec/changes/archive/2026-09-15-make-the-liberty-base-file-explicit-and-fix-two-stale-rtl-headers/design.md`
-的 A1。
+实测过程见归档变更
+`2026-09-15-make-the-liberty-base-file-explicit-and-fix-two-stale-rtl-headers`
+的 design.md A1（归档未开源）。
 
 ---
 

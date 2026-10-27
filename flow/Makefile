@@ -134,7 +134,8 @@ sweep: require-design
 
 # 磁盘护栏（内部#173）：exp / synth / depth 开跑前查剩余空间（flow/disk.py，阈值 20 GB，RTL_PPA_MIN_FREE_GB 可改）；
 # sweep 与 regress 在脚本里逐组合 / 开跑前自己查。
-# 端口组合依赖检查（io-comb-deps，内部#266）：按 params.yaml 的 iodeps_configs 逐组跑，与 LRS「接口组合依赖」表比对，
+# 端口组合依赖检查（io-comb-deps，内部#266）：按 params.yaml 的 iodeps_configs 逐组跑，与 LRS「接口组合依赖」表比对
+# （没有 LRS 的通用构件读 spec.<顶层>.md，内部#415），
 # 任一组 FAIL 退出 1。发布前必跑（docs/toolchain.md），不进 fast_check（大设计每组约 70 秒、峰值约 5.8 GB）。
 # CONFIG="a b" 只跑这几组；JOBS 默认 1，按内存定（每组峰值见上）。产物在 runs/iodeps/<顶层>/<组>/。
 # iodeps / regress / sweep 是全机大活（内部#359）：经 flow/budget.py 等负载与内存、拿 keel 租约 cpu-heavy 排队，跑完释放。

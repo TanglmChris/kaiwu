@@ -150,3 +150,40 @@ def test_deleting_baseline_or_manifest_on_branch_fails(tmp_path):
     _write(repo2, {"flow/export/manifest.yaml": None})
     r = _run(repo2)
     assert r.returncode == 1 and "manifest" in r.stdout + r.stderr, r.stdout + r.stderr
+
+
+# --- 基点（内部#448）：各 worktree 共用的本地 main 平时没人让它前进，chief 推的是 origin/main -----------------
+# 清单在旧 main 之后加了 substitute（替换源只在新树里有）。拿当前清单扫旧基点，leak_scan 会抛 ManifestError。
+
+SUB_MANIFEST = MANIFEST + "substitute:\n  README.md: flow/open/README.md\n"
+
+
+def _stale_main_repo(tmp_path, with_origin=True):
+    """本地 main 停在 A（没有替换源）；B 加了替换源与清单，origin/main 指向 B（with_origin 时）；feature 从 B 拉。"""
+    repo = _repo(tmp_path)                               # main = A，当前在 feature（= A）
+    _write(repo, {"flow/export/manifest.yaml": SUB_MANIFEST, "flow/open/README.md": "# open\n"})   # feature 上的 B
+    b = _git(repo, "rev-parse", "HEAD")
+    if with_origin:
+        _git(repo, "update-ref", "refs/remotes/origin/main", b)
+    return repo
+
+
+def test_a_stale_local_main_gives_way_to_a_newer_origin_main(tmp_path):
+    repo = _stale_main_repo(tmp_path)
+    _write(repo, {"tests/test_b.py": "secret_ip\n"})
+    r = _run(repo)
+    out = r.stdout + r.stderr
+    assert "Traceback" not in out, out
+    assert r.returncode == 1, out
+    assert "tests/test_b.py +1" in out, out                  # 相对 origin/main（B）逐文件对比
+    assert "tests/test_a.py" not in out, out
+
+
+def test_a_base_tree_that_does_not_fit_the_manifest_does_not_crash(tmp_path):
+    repo = _stale_main_repo(tmp_path, with_origin=False)    # 只有旧的本地 main 可用
+    _write(repo, {"tests/test_b.py": "secret_ip\n"})
+    r = _run(repo)
+    out = r.stdout + r.stderr
+    assert "Traceback" not in out, out
+    assert r.returncode == 1, out
+    assert "对不上当前清单" in out and "按文件列命中最多" in out, out

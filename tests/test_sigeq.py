@@ -139,7 +139,7 @@ def test_real_source_resolution(repo, capsys):
 
 def test_export_takes_every_design_tree_and_tolerates_missing_ones(tmp_path):
     """export 按 DESIGN_TREES 导出；某棵树在该提交里不存在时跳过而不是让 git archive 失败（内部#305）。
-    ip_designs/ 不是设计树（kaiwu-layout-in-place），里面的文件不导出。"""
+    ip_designs/ 不是设计树（2026-10-15 搬回），里面的文件不导出。"""
     r = tmp_path / "r"
     for rel in ("designs/foo/rtl/foo.v", "ip_designs/bar/rtl/bar.v", "flow/y.py"):
         (r / rel).parent.mkdir(parents=True, exist_ok=True)

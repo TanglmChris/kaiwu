@@ -355,3 +355,53 @@ def test_coverage_is_judged_on_the_whole_list_even_with_config_subset(tmp_path, 
     assert ran == ["a"], ran
     assert rc != 0, out
     assert "`CHK_EN` 取 0" in out and "覆盖缺口 1" in out, out
+
+
+# --- 通用构件只有精简规格（内部#415，io-comb-deps「LRS 必须用固定写法声明接口组合依赖」）-------------------
+# cbb/ 下的构件按 flow/templates/cbb-root/ 只写 spec.<顶层>.md，不写 LRS；表的写法相同，只换读哪份文档。
+
+def test_interface_doc_falls_back_to_the_cbb_spec(tmp_path):
+    from flow.check import io_comb_deps as icd
+    (tmp_path / "spec.TOP.md").write_text("# TOP\n")
+    assert icd.interface_doc(tmp_path, "TOP") == tmp_path / "spec.TOP.md"
+
+
+def test_interface_doc_prefers_the_lrs(tmp_path):
+    from flow.check import io_comb_deps as icd
+    (tmp_path / "spec.TOP.md").write_text("# TOP\n")
+    (tmp_path / "lrs.TOP.md").write_text("# TOP\n")
+    assert icd.interface_doc(tmp_path, "TOP") == tmp_path / "lrs.TOP.md"
+
+
+def test_interface_doc_without_either_points_at_the_lrs(tmp_path):
+    from flow.check import io_comb_deps as icd
+    assert icd.interface_doc(tmp_path, "TOP") == tmp_path / "lrs.TOP.md"
+
+
+def _spec_only_setup(tmp_path, monkeypatch, text):
+    from flow.check import io_comb_deps as icd
+    (tmp_path / "spec.TOP.md").write_text(text)
+    setup = dict(configs=[("a", {"MODE": 1, "CHK_EN": 0}), ("b", {"MODE": 3}), ("c", {})], rtl_params=RTL,
+                 declared=DECL, lrs=icd.interface_doc(tmp_path, "TOP"), exclude=[], loops_decl={})
+    monkeypatch.setattr(icd, "design_setup", lambda design: dict(setup))
+    monkeypatch.setattr(icd, "run_config", lambda design, s, name, params, outdir, deps_only=False, keep_netlist=False:
+                        dict(name=name, params=params, deps={}, violations=[], absent=[], errors=[],
+                             peer_loops=[], channel_loops=[], loop_errors=[], passed=True))
+    monkeypatch.setattr(icd, "_report", lambda r, deps_only: f"== {r['name']} PASS")
+    return icd
+
+
+def test_the_table_is_read_from_the_cbb_spec(tmp_path, monkeypatch, capsys):
+    icd = _spec_only_setup(tmp_path, monkeypatch, "# TOP\n\n## 接口组合依赖\n\n" + LRS_OK)
+    rc = icd.main(["--design", "TOP", "--out", str(tmp_path / "out")])
+    out = capsys.readouterr().out
+    assert "覆盖检查（#338）：缺口 0" in out, out
+    assert rc == 0, out
+
+
+def test_a_cbb_spec_without_the_table_names_the_file(tmp_path, monkeypatch, capsys):
+    icd = _spec_only_setup(tmp_path, monkeypatch, "# TOP\n\n## 功能\n\n没有表。\n")
+    rc = icd.main(["--design", "TOP", "--out", str(tmp_path / "out")])
+    err = capsys.readouterr().err
+    assert rc == 2, err
+    assert "spec.TOP.md" in err and "接口组合依赖表" in err, err
