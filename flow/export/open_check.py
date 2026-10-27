@@ -7,7 +7,7 @@
 - 悬空引用（warn）：导出文本里形如路径的词，在被扫提交的树里存在、却不在开源集合里；或只出现在闭源文件里的代码文件名
   （`.py` / `.v` / `.sv` / `.sh` / `.tcl`，私有脚本名那一类；`experiments.jsonl` 这类通用的数据文件名不算）。
   白名单本身永远闭源，引用它是有意的，不报；
-- 死链（warn）：导出目录里 Markdown 的相对链接目标不存在；含 `<`、`…` 的模板占位不报；
+- 死链（warn）：导出目录里 Markdown 的相对链接目标不存在；代码块与行内代码里的、含 `<`、`…` 的模板占位不报；
 - 导出目录 `git init -b main` 并提交一次（公开仓的读者拿到的是 git 仓库）。
 `--quick` 到此为止。完整模式接着照 quickstart 第 1 步在导出目录从零建 venv（不复用、不软链），EDA 工具不在 PATH 时
 补 `~/tools/env.sh`、仍缺退出 2；以激活该 venv 的 PATH 跑 fast_check 与 `pytest -m 'not flow'`。pytest 的跳过只认
@@ -33,6 +33,7 @@ ALLOWED_SKIP = "不在导出集合"      # 读闭源记录 / 白名单的用例�
 _SKIPPED = re.compile(r"^SKIPPED \[\d+\] (.+)$", re.M)
 _PATHLIKE = re.compile(r"[A-Za-z0-9_.\-]+(?:/[A-Za-z0-9_.\-]+)+")
 _FILENAME = re.compile(r"(?<![\w/.\-])[A-Za-z0-9_\-]+\.(?:py|v|sv|sh|tcl)(?![\w/\-])")   # 只看代码文件名，同 closed_vocab
+_INLINE_CODE = re.compile(r"`[^`\n]*`")    # 反引号里的「链接」是例子，Markdown 不渲染
 _MDLINK = re.compile(r"(?<!!)\[[^\]\n]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)|!\[[^\]\n]*\]\(([^)\s]+)\)")
 
 
@@ -70,7 +71,7 @@ def dangling_refs(repo, ref, out):
 
 
 def dead_links(out):
-    """[(文件, 行号, 目标)]：Markdown 相对链接目标不存在；代码块里的、模板占位（含 `<` 或 `…`）不算。"""
+    """[(文件, 行号, 目标)]：Markdown 相对链接目标不存在；代码块与行内代码里的、模板占位（含 `<` 或 `…`）不算。"""
     hits = []
     for path, lines in _text_files(out):
         if not path.endswith(".md"):
@@ -82,7 +83,7 @@ def dead_links(out):
                 continue
             if in_code:
                 continue
-            for m in _MDLINK.finditer(line):
+            for m in _MDLINK.finditer(_INLINE_CODE.sub("", line)):
                 target = m.group(1) or m.group(2)
                 if re.match(r"^[a-z]+:", target) or target.startswith("#") or "<" in target or "…" in target:
                     continue

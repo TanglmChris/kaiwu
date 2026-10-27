@@ -121,3 +121,11 @@ def test_skip_reasons_only_allow_closed_files():
     assert (ok, bad) == (True, []), bad
     ok, bad = open_check.skip_reasons(SKIPS_OK.replace("991 passed", bad_line + "\n991 passed"))
     assert not ok and bad == ["tests/test_x.py:3: verilator not on PATH"], bad
+
+
+def test_links_inside_inline_code_are_not_links(tmp_path):
+    # 规格里拿链接当例子时写在反引号里，Markdown 不渲染成链接，不算死链（open-export / repo-layout 主规格里各有一处）
+    repo = _repo(tmp_path, {"flow/e.md": "例子：`[a](missing.md)` 与 `![框图](doc/top.svg)`，真链接 [b](gone.md)\n"})
+    r = _check(repo, tmp_path / "out")
+    assert "flow/e.md:1: gone.md" in r.stdout, r.stdout + r.stderr
+    assert "missing.md" not in r.stdout and "doc/top.svg" not in r.stdout, r.stdout

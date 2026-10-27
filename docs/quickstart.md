@@ -22,16 +22,15 @@ python3.11 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 ```
 
-然后激活环境（每开一个新 shell 都要激活一次）：
+激活环境是可选的，只为在 shell 里直接敲 `python3` / `pytest` 时用到 `.venv` 的 3.11：
 
 ```bash
 source .venv/bin/activate
 ```
 
-- **跑测试和实验前必须激活**：仿真时 Verilator / cocotb 会从 `PATH` 里找 `python3`，不激活就会用到系统自带的那个
-  （macOS 上是 3.9），和 `.venv` 的 3.11 对不上，`tests/test_sim_verilator.py` 里的用例会失败。
-  只写 `.venv/bin/python3 -m pytest` 不够，子进程看的是 `PATH`。
-
+- 不激活也能跑：`flow/Makefile` 和 `scripts/` 下的脚本都按 `.venv/bin/python3` 找解释器；仿真时 Verilator / cocotb
+  的子进程用的也是跑流程的那个解释器（流程入口和 `tests/conftest.py` 会把它的目录放到 `PATH` 最前面），
+  不会落到系统自带的 `python3`（macOS 上是 3.9）。
 - `.venv` 必须建在仓库根：`scripts/fast_check.sh`、`scripts/merge_check.py`、`scripts/review_prep.py` 都按这个位置找解释器，
   缺了它有一批测试会失败。
 - `requirements.txt` 是含传递依赖的完整锁定。其中 cocotb、vcdvcd、pyyaml 在测量路径上，**不要改它们的版本**：
@@ -96,7 +95,6 @@ done
 
 ```bash
 source ~/tools/env.sh
-source .venv/bin/activate                                      # 新 shell 要重新激活，见第 1 步
 ./scripts/fast_check.sh                                        # 秒级：elaborate + lint + 文档与结构检查
 .venv/bin/python3 -m pytest tests/ -q -n 4 -m 'not flow'       # 内循环
 ```

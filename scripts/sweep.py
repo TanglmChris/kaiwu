@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
 
 from flow.disk import require_free
+from flow.sim.python_path import prefer_this_python
 from flow.flow_fingerprint import flow_fingerprint
 from flow.paths import load_design_config, load_params_spec, run_dir
 from flow.param_exclude import ExcludeError, point_params, sweep_combos
@@ -25,6 +26,8 @@ from flow import records
 from scripts import run_experiment as rx
 from scripts import score
 from scripts.run_experiment import run_experiment
+
+prefer_this_python()   # 仿真子进程用这个解释器，不激活 venv 也能跑（内部#442）
 
 
 class SweepError(Exception):

@@ -29,6 +29,13 @@ sys.pycache_prefix = os.environ["PYTHONPYCACHEPREFIX"]
 # 用例显式传 FAST_CHECK_TOOLS_ENV。
 os.environ["FAST_CHECK_TOOLS_ENV"] = ""
 
+# 仿真子进程（Verilator 的 makefile 调的 python3 脚本）用跑 pytest 的这个解释器，不激活 venv 也能跑（内部#442，
+# flow-parameterization「仿真子进程必须用跑流程的那个解释器」）。
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from flow.sim.python_path import prefer_this_python  # noqa: E402
+
+prefer_this_python()
+
 # 测试里拉起的 merge_check / review_prep / make sweep 都会经 flow/budget.py 拿全机锁
 # `cpu-heavy`（内部#359）。测试不该去占真锁、也不该在 xdist 的几个 worker 之间互相排队；
 # 整轮 pytest 算一件大活（由 merge_check 或跑的人自己排），里面一律当已持有。

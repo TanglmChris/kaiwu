@@ -1,7 +1,8 @@
 # fast_check 的记录与报告护栏（parallel-worktree「秒级护栏必须机械检查记录与报告的来源」、
 # experiment-record「已提交记录的 git_commit 必须是 HEAD 的祖先」，内部#422）。
 # 在仓库根跑：.venv/bin/python3 -m flow.check.fc_record_branches；每项打一行 `ok    <项>（…）` 或
-# `FAIL  <项>：…`（明细缩进在下面），任一项失败退出 1。只看**已提交**的状态（HEAD 与各 ref），不看工作区。
+# `FAIL  <项>：…`（明细缩进在下面），任一项失败退出 1；不在 git 仓库里时只打一行 `skip  <项>（原因）`、退出 0，
+# fast_check 记进未执行（内部#443）。只看**已提交**的状态（HEAD 与各 ref），不看工作区。
 #
 # 四项：
 #   记录与报告的来源   非白名单分支：HEAD 上不得有 main 与白名单分支都没有的记录行（按内容判：只搬不增的
@@ -181,8 +182,9 @@ def check_migrated(head):
 
 def main():
     if git("rev-parse", "--is-inside-work-tree", check=False).returncode != 0:
-        print(f"FAIL  {SRC}：不在 git 仓库里，无法确定相对 main 的 merge-base")
-        return 1
+        # 如 Download ZIP 解压的公开仓：没有提交就没有要保护的记录历史；推送只能在 git 仓库里做，pre-push 照样核（内部#443）
+        print(f"skip  {SRC}（不在 git 仓库里：这几项都看提交历史，无从核起）")
+        return 0
     if not ref_exists("refs/heads/main"):
         print(f"FAIL  {SRC}：没有名为 main 的分支，无法确定 merge-base")
         print("      （默认分支改过名的话，这里的 main 要跟着改）")

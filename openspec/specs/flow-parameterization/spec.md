@@ -524,3 +524,19 @@ MUST NOT 落在设计根内（`repo-layout` 的「每类产物必须归属到明
 
 - **WHEN** `make depth DESIGN=X REF=abc123`
 - **THEN** 量的是 `abc123` 的 RTL，输出里有 `abc123` 的完整提交号，结束后临时 worktree 不在了
+
+### Requirement: 仿真子进程必须用跑流程的那个解释器
+
+流程的入口（`scripts/sweep.py`、`scripts/exp.py`、`tests/conftest.py`）MUST 在启动仿真之前，把当前解释器所在目录放到进程 `PATH` 的最前面，让仿真器起的子进程（例如 Verilator 生成的 makefile 调用的 `#!/usr/bin/env python3` 脚本）找到的 `python3` 就是跑流程的这个解释器。这一步 MUST NOT 写在 METRIC_MODULES 里的文件中：它不改任何测量值，不应该换代。
+
+理由：cocotb runner 按当前解释器设好了 Python 环境，子进程却按 `PATH` 找 `python3`。不激活 venv 时，在 macOS 上找到的是系统自带的 3.9，它拿到 3.11 的标准库就崩（内部#442，开源导出里不激活时 `tests/test_sim_verilator.py` 挂 2 条）。
+
+#### Scenario: 不激活 venv 直接跑
+
+- **WHEN** 用 `.venv/bin/python3` 跑 `scripts/sweep.py`、`scripts/exp.py` 或 pytest，而 `PATH` 里排在前面的 `python3` 是另一个解释器
+- **THEN** 仿真子进程找到的 `python3` 是 `.venv/bin` 里的那个
+
+#### Scenario: 已经激活
+
+- **WHEN** 当前解释器的目录已经在 `PATH` 最前面
+- **THEN** `PATH` 不变，重复调用不会叠加

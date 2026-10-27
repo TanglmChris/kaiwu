@@ -42,6 +42,7 @@ fail=0
 ran=()        # 实际执行并通过的检查
 skipped=()    # 没能执行的检查（附原因）
 live=()       # 每次都实跑、结果不进缓存的检查（内部#432：「记录与报告」看分支名与 HEAD 提交，缓存键盖不住）
+live_skipped=()   # 同上，但这次没能核的（`skip  <项>（原因）`，内部#443）
 # bash 3.2 下 ${#arr[@]} 对空数组是 0，但 "${arr[@]}" 会触发 set -u；下面统一先判长度。
 note() { printf '%s\n' "$*"; }
 
@@ -104,7 +105,11 @@ if [ -f flow/check/fc_cache.py ]; then
         "$PY" -m flow.check.fc_record_branches > "$LOGDIR/records.log" 2>&1 || rb_rc=$?
         note "本次实跑（不复用，#432）"
         while IFS= read -r line; do
-            case "$line" in "ok    "*) note "  已执行  ${line#ok    }" ;; *) note "$line" ;; esac
+            case "$line" in
+                "ok    "*) note "  已执行  ${line#ok    }" ;;
+                "skip  "*) note "  未执行  ${line#skip  }" ;;
+                *) note "$line" ;;
+            esac
         done < "$LOGDIR/records.log"
         finished=1
         [ "$rb_rc" = 0 ] || exit 1
@@ -655,7 +660,10 @@ fi
 rb_rc=$?
 cat "$LOGDIR/records.log"
 while IFS= read -r line; do
-    case "$line" in "ok    "*) live+=("${line#ok    }") ;; esac
+    case "$line" in
+        "ok    "*) live+=("${line#ok    }") ;;
+        "skip  "*) live_skipped+=("${line#skip  }") ;;
+    esac
 done < "$LOGDIR/records.log"
 [ "$rb_rc" = 0 ] || fail=1
 
@@ -711,6 +719,9 @@ _summary() {   # $1 = 1 时带上 live 的几项
     fi
     if [ "$1" = 1 ] && [ "${#live[@]}" -gt 0 ]; then
         for item in "${live[@]}"; do note "  已执行  $item"; done
+    fi
+    if [ "$1" = 1 ] && [ "${#live_skipped[@]}" -gt 0 ]; then
+        for item in "${live_skipped[@]}"; do note "  未执行  $item"; done
     fi
 
     if [ -s "$LOGDIR/waivers.active" ]; then

@@ -208,7 +208,7 @@ def _ensure_git(script, branch="main"):
     """夹具仓还不是 git 仓时，就地 `git init` 并把当前内容提交一次。
 
     fast_check 的「记录与报告的来源」等几项要从 `main` 算 merge-base，
-    不在 git 仓里按契约必须失败（parallel-worktree spec）。所以夹具默认就是
+    不在 git 仓里只能记为未执行（parallel-worktree spec，内部#443）。所以夹具默认就是
     一个停在 main 上、工作区干净的 git 仓；已经是 git 仓的（用例自己搭的
     分支形态）原样不动。"""
     root = script.parent.parent

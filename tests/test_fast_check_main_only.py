@@ -239,8 +239,10 @@ def test_without_a_main_branch_the_check_fails(tmp_path):
     assert f"FAIL  {SRC}" in out and "main" in out, out
 
 
-def test_outside_a_git_repo_the_check_fails(tmp_path):
-    """不走 _run_with_path（它会 git init），直接跑。"""
+def test_outside_a_git_repo_the_check_is_listed_as_not_run(tmp_path):
+    """不在 git 仓库里（如 Download ZIP 解压的公开仓）：记为未执行，不判失败，也不算已执行（内部#443，用户 2026-10-26 定）。
+
+    不走 _run_with_path（它会 git init），直接跑。没有 main 分支仍判失败，见上一条。"""
     import os
     script = _fixture_repo(tmp_path, GOOD_PARAMS)
     bindir = tmp_path / "stubbin"
@@ -253,5 +255,7 @@ def test_outside_a_git_repo_the_check_fails(tmp_path):
                GIT_CEILING_DIRECTORIES=str(tmp_path.parent))
     r = subprocess.run([str(script)], capture_output=True, text=True, env=env)
     out = r.stdout + r.stderr
-    assert r.returncode != 0, out
-    assert f"FAIL  {SRC}" in out, out
+    assert f"FAIL  {SRC}" not in out, out
+    assert f"  未执行  {SRC}（不在 git 仓库里" in out, out
+    assert f"已执行  {SRC}" not in out, out
+    assert r.returncode == 0, out
